@@ -58,7 +58,7 @@ export default function SubtitlesOverlay({ subtitles, isSpeaking = false }: Subt
 
   return (
     <div 
-      className={`absolute bottom-36 sm:bottom-40 md:bottom-44 landscape:bottom-24 inset-x-0 flex flex-col items-center z-[150] pointer-events-none px-3 sm:px-6 transition-opacity duration-300 ease-out ${
+      className={`absolute bottom-48 sm:bottom-52 md:bottom-56 landscape:bottom-36 inset-x-0 flex flex-col items-center z-[150] pointer-events-none px-3 sm:px-6 transition-opacity duration-300 ease-out ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
     >
