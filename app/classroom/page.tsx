@@ -23,14 +23,12 @@ import { Rnd } from 'react-rnd';
 import { getAvatarGender, getVoiceForLanguage } from "../../lib/voiceGender";
 import { playCompletionChime } from "../../lib/soundEffects";
 import { cleanVoiceSubtitles, formatProperSubtitles } from "../../lib/subtitleUtils";
-import SignCameraDetector from "../../components/SignCameraDetector";
 import { textToSiGML } from "../../lib/clientSignConverter";
 
 export default function Home() {
   // --- UI STATE ---
   const [isScreenshare, setIsScreenshare] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
-  const [isSignCameraOpen, setIsSignCameraOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -246,26 +244,6 @@ export default function Home() {
   // --- CUSTOM HOOKS ---
   const { enqueueSiGML, enqueueChunks, pause, resume, skipForward, skipBackward, playerState, stopAll, returnToRestPose } = useCWASA(handleChunkSubtitles, onChunkStart, handleQueueFinish);
 
-  const handleSignDetected = useCallback(async (sign: string, spokenPhrase: string) => {
-    const textToDisplay = spokenPhrase || sign;
-    handleSetSubtitles(textToDisplay, true);
-
-    // If demo lecture or mic speech is actively running, don't interrupt playback
-    if (isDemoActiveRef.current || isRecordingRef.current) return;
-
-    // Animate avatar to sign the recognized concept back immediately without clogging the queue
-    try {
-      const sigml = await textToSiGML(sign);
-      if (sigml && sigml.length > 0) {
-        enqueueChunks([{
-          text: textToDisplay,
-          sigml: sigml
-        }], { replace: true });
-      }
-    } catch (e) {
-      // non-fatal
-    }
-  }, [enqueueChunks]);
 
   const stopDemoLecture = useCallback(() => {
     setIsDemoActive(false);
@@ -323,11 +301,10 @@ export default function Home() {
       if (isRecording) {
         toggleMic();
       }
-      // Mutual exclusivity: stop cast, close whiteboard, close screenshare/media, close sign cam & modals
+      // Mutual exclusivity: stop cast, close whiteboard, close screenshare/media & modals
       stopCastAudio();
       setIsWhiteboardOpen(false);
       setIsPdfAnnotate(false);
-      setIsSignCameraOpen(false);
       setShowAITools(false);
       setShowSettings(false);
       if (videoRef.current && videoRef.current.srcObject) {
@@ -467,7 +444,6 @@ export default function Home() {
       videoRef.current.srcObject = null;
     }
     setIsScreenshare(false);
-    setIsSignCameraOpen(false);
     setShowAITools(false);
     setShowSettings(false);
     setIsWhiteboardOpen(prev => !prev);
@@ -476,12 +452,6 @@ export default function Home() {
   const handleGoBack = useCallback(() => {
     // ALWAYS refresh the character, clear any queued signs, and return to rest pose
     resetAvatarState();
-
-    // 0. If Sign Camera is open, close it
-    if (isSignCameraOpen) {
-      setIsSignCameraOpen(false);
-      return;
-    }
 
     // 1. If Whiteboard is open, close Whiteboard and return to previous view
     if (isWhiteboardOpen) {
@@ -525,7 +495,6 @@ export default function Home() {
       window.location.href = "/classroom";
     }
   }, [
-    isSignCameraOpen,
     isWhiteboardOpen,
     isScreenshare,
     presentationFileUrl,
@@ -959,7 +928,6 @@ export default function Home() {
     // Immediately reset avatar state, stop demos, close whiteboard & modals
     resetAvatarState();
     setIsWhiteboardOpen(false);
-    setIsSignCameraOpen(false);
     setShowAITools(false);
     setShowSettings(false);
 
@@ -1006,7 +974,6 @@ export default function Home() {
     // Immediately reset avatar state, close whiteboard & modals
     resetAvatarState();
     setIsWhiteboardOpen(false);
-    setIsSignCameraOpen(false);
     setShowAITools(false);
     setShowSettings(false);
 
@@ -1299,7 +1266,25 @@ export default function Home() {
         <div className="w-full h-full relative flex justify-center items-center">
           {presentationFileUrl ? (
             presentationFileType === 'video' ? (
-              <video ref={presentationVideoRef} src={presentationFileUrl} autoPlay loop muted={isVideoMuted} playsInline className="w-full h-full object-contain relative z-10" />
+              <video 
+                ref={presentationVideoRef} 
+                src={presentationFileUrl} 
+                autoPlay 
+                loop 
+                muted={isVideoMuted} 
+                playsInline 
+                onPlay={() => {
+                  if (presentationVideoRef.current && isAutoSignEnabled) {
+                    startVideoElementAudio(presentationVideoRef.current);
+                  }
+                }}
+                onLoadedData={() => {
+                  if (presentationVideoRef.current && isAutoSignEnabled) {
+                    startVideoElementAudio(presentationVideoRef.current);
+                  }
+                }}
+                className="w-full h-full object-contain relative z-10" 
+              />
             ) : presentationFileType === 'pdf' ? (
               <iframe src={`${presentationFileUrl}#toolbar=1&navpanes=0`} className="w-full h-full relative z-10 bg-white" title="PDF Presentation" />
             ) : (
@@ -1638,15 +1623,12 @@ export default function Home() {
           isRecording={isRecording}
           isSpeaking={isSpeaking}
           toggleMic={toggleMic}
-          isSignCameraOpen={isSignCameraOpen}
-          toggleSignCamera={() => setIsSignCameraOpen(prev => !prev)}
           isWhiteboardOpen={isWhiteboardOpen}
           onToggleBoard={handleToggleBoard}
           onOpenAITools={() => setShowAITools(true)}
           onUploadClick={() => {
             resetAvatarState();
             setIsWhiteboardOpen(false);
-            setIsSignCameraOpen(false);
             setShowAITools(false);
             setShowSettings(false);
             if (presentationFileUrl) {
@@ -1672,8 +1654,6 @@ export default function Home() {
           isRecording={isRecording}
           isSpeaking={isSpeaking}
           toggleMic={toggleMic}
-          isSignCameraOpen={isSignCameraOpen}
-          toggleSignCamera={() => setIsSignCameraOpen(prev => !prev)}
           isScreenshare={isScreenshare}
           toggleScreenshare={toggleScreenshare}
           setShowSettings={setShowSettings}
@@ -1685,7 +1665,6 @@ export default function Home() {
           onUploadClick={() => {
             resetAvatarState();
             setIsWhiteboardOpen(false);
-            setIsSignCameraOpen(false);
             setShowAITools(false);
             setShowSettings(false);
             if (presentationFileUrl) {
@@ -1701,7 +1680,7 @@ export default function Home() {
       )}
 
       {/* Dedicated Clean Playback Bar for Demos & Prompt-to-Sign (Pause/Play, 5s Undo, 5s Redo) */}
-      {!isSignCameraOpen && (isDemoActive || playerState.playing || playerState.hasQueue || playerState.hasHistory) && (
+      {(isDemoActive || playerState.playing || playerState.hasQueue || playerState.hasHistory) && (
         <PlayerControls
           playerState={playerState}
           skipBackward={skipBackward}
@@ -1766,14 +1745,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Real-Time Camera Sign-to-Speech Detector */}
-      <SignCameraDetector
-        isOpen={isSignCameraOpen}
-        onClose={() => setIsSignCameraOpen(false)}
-        onSignDetected={handleSignDetected}
-        targetLanguage={targetLanguage}
-        ttsEnabled={ttsEnabled}
-      />
 
     </main>
   );

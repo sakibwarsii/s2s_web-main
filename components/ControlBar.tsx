@@ -6,8 +6,6 @@ interface ControlBarProps {
   isRecording: boolean;
   isSpeaking?: boolean;
   toggleMic: () => void;
-  isSignCameraOpen?: boolean;
-  toggleSignCamera?: () => void;
   isScreenshare: boolean;
   toggleScreenshare: () => void;
   setShowSettings: (val: boolean) => void;
@@ -21,7 +19,6 @@ interface ControlBarProps {
 
 export default function ControlBar({ 
   isRecording, isSpeaking = false, toggleMic, 
-  isSignCameraOpen = false, toggleSignCamera,
   isScreenshare, toggleScreenshare, 
   setShowSettings, setShowAITools, onUploadClick,
   onToggleBoard, isBoardOpen = false,
@@ -70,30 +67,6 @@ export default function ControlBar({
           </span>
         </div>
 
-        {/* Camera Sign Language Detection Button */}
-        {toggleSignCamera && (
-          <div className="relative flex flex-col items-center">
-            <button 
-              id="tour-sign-cam" 
-              onClick={toggleSignCamera}
-              className={`relative w-11 h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl active:scale-95 sm:hover:-translate-y-1.5 sm:hover:scale-108 cursor-pointer border-2 ${
-                isSignCameraOpen 
-                  ? 'bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 border-emerald-300 shadow-[0_0_25px_rgba(16,185,129,0.9)] scale-105 ring-2 ring-emerald-400 animate-pulse' 
-                  : 'bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 border-emerald-400/60 shadow-emerald-600/40 shadow-lg'
-              }`}
-              title={isSignCameraOpen ? "Close Camera Sign Recognition" : "Open Camera Sign Recognition (Sign-to-Speech & Captions)"}
-            >
-              <i className="fas fa-camera text-white text-base sm:text-lg"></i>
-              {/* Active Lens Dot */}
-              <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border border-black/50 ${
-                isSignCameraOpen ? 'bg-red-500 animate-ping' : 'bg-emerald-300 animate-pulse'
-              }`} />
-            </button>
-            <span className="text-[9px] font-bold text-emerald-200 mt-1 uppercase tracking-tight font-mono select-none drop-shadow">
-              Sign Cam
-            </span>
-          </div>
-        )}
 
         {/* Smart Whiteboard & Teaching Board Button */}
         {onToggleBoard && (
