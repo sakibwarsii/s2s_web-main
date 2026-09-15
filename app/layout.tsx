@@ -12,8 +12,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Signova - AI Real-Time Sign Language Platform",
-  description: "Empowering education with AI Speech-to-Sign translation",
+  title: "SignBridge Next.js",
+  description: "Enterprise Sign Language Platform",
 };
 
 export default function RootLayout({

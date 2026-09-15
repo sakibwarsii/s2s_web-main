@@ -2,7 +2,6 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { formatProperSubtitles } from '../lib/subtitleUtils';
-import { textToSiGML } from '../lib/clientSignConverter';
 
 interface UseCastAudioToSignProps {
   wsTeacherRef: React.MutableRefObject<WebSocket | null>;
@@ -136,47 +135,17 @@ export function useCastAudioToSign({
       formData.append("file", wavBlob, "cast_audio.wav");
 
       const sessId = getSessionId();
-      const primaryUrl = '/api/transcribe-audio';
-      const fallbackUrl = 'https://signova-backend-baas.onrender.com/api/transcribe-audio';
-      const urlWithParams = (base: string) => `${base}?lang=${encodeURIComponent(targetLanguageRef.current)}&session_id=${encodeURIComponent(sessId)}`;
+      const res = await fetch(`/api/transcribe-audio?lang=${encodeURIComponent(targetLanguageRef.current)}&session_id=${encodeURIComponent(sessId)}`, {
+        method: "POST",
+        body: formData
+      });
 
-      let res: Response | null = null;
-      try {
-        res = await fetch(urlWithParams(primaryUrl), {
-          method: "POST",
-          body: formData
-        });
-        if (!res.ok) {
-          throw new Error(`Proxy status: ${res.status}`);
-        }
-      } catch (proxyErr) {
-        console.warn("[CastAudioToSign] Primary API failed, trying direct Render backend:", proxyErr);
-        try {
-          res = await fetch(urlWithParams(fallbackUrl), {
-            method: "POST",
-            body: formData
-          });
-        } catch (cloudErr) {
-          console.error("[CastAudioToSign] Both endpoints failed:", cloudErr);
-        }
-      }
-
-      if (res && res.ok) {
+      if (res.ok) {
         const data = await res.json();
-        if (data && data.text && data.text.trim()) {
+        if (data && data.text && !data.duplicate) {
           onSubtitles(formatProperSubtitles(data.text, true), true);
-          let signs: string[] = [];
           if (data.sigml && Array.isArray(data.sigml) && data.sigml.length > 0) {
-            signs = data.sigml;
-          } else {
-            try {
-              signs = await textToSiGML(data.text);
-            } catch (sigErr) {
-              console.warn("[CastAudioToSign] Client sign conversion fallback failed:", sigErr);
-            }
-          }
-          if (signs && signs.length > 0) {
-            enqueueSiGML(signs, data.text);
+            enqueueSiGML(data.sigml, data.text);
           }
         }
       }
@@ -236,7 +205,7 @@ export function useCastAudioToSign({
         const normalizedLevel = Math.min(rms * 8, 1);
         setAudioLevel(normalizedLevel);
 
-        if (rms > 0.004) {
+        if (rms > 0.007) {
           lastSpokenTimeRef.current = Date.now();
           hadSoundRef.current = true;
 
@@ -261,17 +230,17 @@ export function useCastAudioToSign({
             wsTeacherRef.current.send(pcm16.buffer);
           }
 
-          if (totalPcmSamplesRef.current >= 20000) {
+          if (totalPcmSamplesRef.current >= 48000) {
             processSpeechChunk();
           }
         } else {
           const silenceDuration = Date.now() - lastSpokenTimeRef.current;
-          if (hadSoundRef.current && silenceDuration > 500) {
+          if (hadSoundRef.current && silenceDuration > 700) {
             hadSoundRef.current = false;
             if (wsTeacherRef.current && wsTeacherRef.current.readyState === WebSocket.OPEN) {
               wsTeacherRef.current.send(JSON.stringify({ type: "flush" }));
             }
-            if (totalPcmSamplesRef.current >= 6000) {
+            if (totalPcmSamplesRef.current >= 12000) {
               processSpeechChunk();
             }
           }
@@ -292,59 +261,24 @@ export function useCastAudioToSign({
     setIsCastAudioActive(true);
 
     try {
-      let audioCtx = (videoEl as any).__signovaAudioCtx as AudioContext | undefined;
-      let source = (videoEl as any).__signovaSourceNode as MediaElementAudioSourceNode | undefined;
-
-      if (!audioCtx || audioCtx.state === 'closed') {
-        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-        audioCtx = new AudioCtxClass();
-        (videoEl as any).__signovaAudioCtx = audioCtx;
-      }
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioCtxClass();
       audioContextRef.current = audioCtx;
 
       if (audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {});
-        const onPlay = () => {
-          audioCtx?.resume().catch(() => {});
-        };
-        videoEl.addEventListener('play', onPlay, { once: true });
+        audioCtx.resume();
       }
 
-      if (!source) {
-        try {
-          source = audioCtx.createMediaElementSource(videoEl);
-          (videoEl as any).__signovaSourceNode = source;
-          // Route video audio to speakers
-          source.connect(audioCtx.destination);
-        } catch (e) {
-          console.warn("[CastAudioToSign] Error creating MediaElementSource:", e);
-        }
-      }
-      sourceNodeRef.current = source || null;
-
-      if (!source) return;
-
-      if (processorRef.current) {
-        try {
-          processorRef.current.disconnect();
-          processorRef.current.onaudioprocess = null;
-        } catch (e) {}
-      }
+      // Route audio to destination so video sound plays through speakers
+      const source = audioCtx.createMediaElementSource(videoEl);
+      sourceNodeRef.current = source;
 
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
-      const gainNode = audioCtx.createGain();
-      gainNode.gain.value = 0; // Muted so processor receives audio without feedback
-      gainNodeRef.current = gainNode;
-
-      try {
-        source.connect(processor);
-        processor.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-      } catch (e) {
-        console.warn("[CastAudioToSign] Connection error:", e);
-      }
+      source.connect(audioCtx.destination);
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
 
       processor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
@@ -357,7 +291,7 @@ export function useCastAudioToSign({
         const normalizedLevel = Math.min(rms * 8, 1);
         setAudioLevel(normalizedLevel);
 
-        if (rms > 0.004) {
+        if (rms > 0.015) {
           lastSpokenTimeRef.current = Date.now();
           hadSoundRef.current = true;
 
@@ -381,17 +315,17 @@ export function useCastAudioToSign({
             wsTeacherRef.current.send(pcm16.buffer);
           }
 
-          if (totalPcmSamplesRef.current >= 20000) {
+          if (totalPcmSamplesRef.current >= 48000) {
             processSpeechChunk();
           }
         } else {
           const silenceDuration = Date.now() - lastSpokenTimeRef.current;
-          if (hadSoundRef.current && silenceDuration > 500) {
+          if (hadSoundRef.current && silenceDuration > 700) {
             hadSoundRef.current = false;
             if (wsTeacherRef.current && wsTeacherRef.current.readyState === WebSocket.OPEN) {
               wsTeacherRef.current.send(JSON.stringify({ type: "flush" }));
             }
-            if (totalPcmSamplesRef.current >= 6000) {
+            if (totalPcmSamplesRef.current >= 12000) {
               processSpeechChunk();
             }
           }
@@ -407,23 +341,21 @@ export function useCastAudioToSign({
   // Stops audio capture and cleans up
   const stopCastAudio = useCallback(() => {
     if (processorRef.current) {
-      try {
-        processorRef.current.disconnect();
-        processorRef.current.onaudioprocess = null;
-      } catch (e) {}
+      processorRef.current.disconnect();
+      processorRef.current.onaudioprocess = null;
       processorRef.current = null;
     }
-    if (gainNodeRef.current) {
-      try { gainNodeRef.current.disconnect(); } catch (e) {}
-      gainNodeRef.current = null;
-    }
-    // Only disconnect sourceNode if it wasn't a cached video element
-    if (sourceNodeRef.current && !(sourceNodeRef.current as any).mediaElement) {
-      try { sourceNodeRef.current.disconnect(); } catch (e) {}
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.disconnect();
       sourceNodeRef.current = null;
     }
-    if (audioContextRef.current && !(audioContextRef.current as any).__keepAlive) {
-      // Keep audioCtx open if attached to a video element to avoid InvalidStateError on restart
+    if (gainNodeRef.current) {
+      gainNodeRef.current.disconnect();
+      gainNodeRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch(e) {}
+      audioContextRef.current = null;
     }
     if (speakingDecayTimerRef.current) {
       clearTimeout(speakingDecayTimerRef.current);

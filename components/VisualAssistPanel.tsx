@@ -13,88 +13,6 @@ interface VisualAssistPanelProps {
   onFileDrop?: (file: File) => void;
   activeDemoTopic?: string | null;
   isDemoActive?: boolean;
-  isCuratedDemo?: boolean;
-}
-
-function EducationalIllustration({ subject, keyword }: { subject: string; keyword?: string | null }) {
-  const s = (subject || '').toLowerCase();
-  const k = (keyword || '').toLowerCase();
-
-  if (s.includes('physics') || k.includes('circuit') || k.includes('volt') || k.includes('current') || k.includes('atom') || k.includes('gravity') || k.includes('motion')) {
-    return (
-      <svg className="w-16 h-16 sm:w-20 sm:h-20 text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.5)] shrink-0 animate-pulse" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.9" />
-        <ellipse cx="50" cy="50" rx="42" ry="16" transform="rotate(30 50 50)" strokeDasharray="4 2" />
-        <ellipse cx="50" cy="50" rx="42" ry="16" transform="rotate(-30 50 50)" strokeDasharray="4 2" />
-        <ellipse cx="50" cy="50" rx="42" ry="16" transform="rotate(90 50 50)" strokeDasharray="4 2" />
-        <circle cx="85" cy="50" r="3" fill="#67e8f9" />
-        <circle cx="20" cy="35" r="3" fill="#67e8f9" />
-        <circle cx="50" cy="90" r="3" fill="#67e8f9" />
-      </svg>
-    );
-  }
-
-  if (s.includes('bio') || k.includes('plant') || k.includes('photo') || k.includes('cell') || k.includes('leaf') || k.includes('dna')) {
-    return (
-      <svg className="w-16 h-16 sm:w-20 sm:h-20 text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.5)] shrink-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M50 15 C25 25 20 65 50 85 C80 65 75 25 50 15 Z" fill="rgba(16,185,129,0.2)" />
-        <path d="M50 15 L50 85" strokeWidth="2" />
-        <path d="M50 35 Q35 30 30 40" strokeWidth="2" />
-        <path d="M50 50 Q35 45 32 55" strokeWidth="2" />
-        <path d="M50 35 Q65 30 70 40" strokeWidth="2" />
-        <path d="M50 50 Q65 45 68 55" strokeWidth="2" />
-        <circle cx="85" cy="20" r="8" fill="#fbbf24" stroke="none" />
-        <path d="M85 7 L85 11" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" />
-        <path d="M72 20 L76 20" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" />
-        <path d="M76 29 L79 26" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (s.includes('chem') || k.includes('acid') || k.includes('molecule') || k.includes('reaction') || k.includes('element')) {
-    return (
-      <svg className="w-16 h-16 sm:w-20 sm:h-20 text-teal-300 drop-shadow-[0_0_12px_rgba(45,212,191,0.5)] shrink-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M42 20 L58 20 M50 20 L50 40 L28 80 C24 86 30 90 38 90 L62 90 C70 90 76 86 72 80 L50 40" strokeLinecap="round" />
-        <path d="M34 72 Q50 68 66 72" strokeWidth="2" fill="rgba(45,212,191,0.3)" />
-        <circle cx="45" cy="78" r="3" fill="#5eead4" />
-        <circle cx="55" cy="82" r="2" fill="#5eead4" />
-        <circle cx="52" cy="62" r="2.5" fill="#5eead4" opacity="0.8" />
-      </svg>
-    );
-  }
-
-  if (s.includes('math') || k.includes('equation') || k.includes('algebra') || k.includes('theorem') || k.includes('calculus')) {
-    return (
-      <svg className="w-16 h-16 sm:w-20 sm:h-20 text-amber-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.5)] shrink-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M15 85 L85 85 M15 15 L15 85" strokeLinecap="round" />
-        <path d="M15 85 L75 35" strokeDasharray="3 3" />
-        <path d="M15 65 Q45 65 75 25" stroke="#fcd34d" strokeWidth="3" fill="none" />
-        <circle cx="75" cy="25" r="4" fill="#fbbf24" />
-        <text x="35" y="45" fill="#fde68a" fontSize="16" fontFamily="serif" fontStyle="italic">f(x)</text>
-      </svg>
-    );
-  }
-
-  if (s.includes('econ') || k.includes('market') || k.includes('price') || k.includes('profit') || k.includes('trade')) {
-    return (
-      <svg className="w-16 h-16 sm:w-20 sm:h-20 text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.5)] shrink-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <rect x="20" y="55" width="12" height="30" rx="3" fill="rgba(52,211,153,0.3)" stroke="currentColor" strokeWidth="2" />
-        <rect x="40" y="40" width="12" height="45" rx="3" fill="rgba(52,211,153,0.4)" stroke="currentColor" strokeWidth="2" />
-        <rect x="60" y="25" width="12" height="60" rx="3" fill="rgba(52,211,153,0.6)" stroke="currentColor" strokeWidth="2" />
-        <path d="M18 60 L38 45 L58 28 L82 15" stroke="#34d399" strokeWidth="3" strokeLinecap="round" />
-        <polygon points="82,15 74,18 78,24" fill="#34d399" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg className="w-16 h-16 sm:w-20 sm:h-20 text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.5)] shrink-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <path d="M50 28 C40 22 24 22 15 25 L15 75 C24 72 40 72 50 78 C60 72 76 72 85 75 L85 25 C76 22 60 22 50 28 Z" fill="rgba(16,185,129,0.2)" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M50 28 L50 78" strokeWidth="2" />
-      <path d="M50 14 L50 8 M46 11 L54 11" stroke="#fcd34d" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="50" cy="11" r="3" fill="#fbbf24" />
-    </svg>
-  );
 }
 
 export default function VisualAssistPanel({
@@ -105,12 +23,10 @@ export default function VisualAssistPanel({
   onUploadClick,
   onFileDrop,
   activeDemoTopic,
-  isDemoActive,
-  isCuratedDemo = false
+  isDemoActive
 }: VisualAssistPanelProps) {
-  // Normalize topic key ONLY when playing one of the curated Quick Demos
+  // Normalize topic key from title or visual url
   const matchedTopicKey = React.useMemo(() => {
-    if (!isCuratedDemo) return null; // Never use hardcoded demo slides for Prompt to Sign
     if (!activeDemoTopic && !visual.url && !visual.keyword) return null;
     const str = `${activeDemoTopic || ''} ${visual.url || ''} ${visual.keyword || ''}`.toLowerCase();
     if (str.includes('photo') || str.includes('plant')) return 'photosynthesis';
@@ -120,7 +36,7 @@ export default function VisualAssistPanel({
     if (str.includes('supply') || str.includes('demand') || str.includes('market')) return 'supply_and_demand';
     if (str.includes('indus') || str.includes('harappa') || str.includes('mohenjo')) return 'indus_valley';
     return null;
-  }, [isCuratedDemo, activeDemoTopic, visual.url, visual.keyword]);
+  }, [activeDemoTopic, visual.url, visual.keyword]);
 
   const activeTopicData: DemoTopicSlides | null = matchedTopicKey ? DEMO_TOPICS_REGISTRY[matchedTopicKey] : null;
 
@@ -128,8 +44,8 @@ export default function VisualAssistPanel({
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   // Compute best active image URL with instant fallback so the TV is NEVER left blank
-  const defaultTopicSlide = isCuratedDemo ? (activeTopicData?.slides?.[0]?.imagePath || null) : null;
-  const initialSlideUrl = isCuratedDemo ? (visual.url || defaultTopicSlide || null) : (visual.url || null);
+  const defaultTopicSlide = activeTopicData?.slides?.[0]?.imagePath || null;
+  const initialSlideUrl = visual.url || (isDemoActive && defaultTopicSlide) || null;
 
   const [activeUrl, setActiveUrl] = useState<string | null>(initialSlideUrl);
   const [isFlipping, setIsFlipping] = useState(false);
@@ -137,16 +53,8 @@ export default function VisualAssistPanel({
 
   // Synchronize incoming visual.url or demo activation without ever blanking the TV
   useEffect(() => {
-    if (!isCuratedDemo) {
-      setActiveUrl(visual.url || null);
-      return;
-    }
-
-    const candidate = visual.url || defaultTopicSlide || null;
-    if (!candidate) {
-      setActiveUrl(null);
-      return;
-    }
+    const candidate = visual.url || (isDemoActive && defaultTopicSlide) || null;
+    if (!candidate) return;
 
     // If candidate matches slide_(\d+).svg, sync slide index
     const match = candidate.match(/slide_(\d+)\.svg/i);
@@ -158,6 +66,7 @@ export default function VisualAssistPanel({
     }
 
     if (candidate !== activeUrl) {
+      // Preload image before switching to ensure zero blank flashes
       if (typeof window !== 'undefined') {
         const img = new Image();
         img.src = candidate;
@@ -167,6 +76,7 @@ export default function VisualAssistPanel({
           setTimeout(() => setIsFlipping(false), 500);
         };
         img.onerror = () => {
+          // Fallback gracefully without leaving screen blank
           if (defaultTopicSlide && candidate !== defaultTopicSlide) {
             setActiveUrl(defaultTopicSlide);
           }
@@ -175,17 +85,15 @@ export default function VisualAssistPanel({
         setActiveUrl(candidate);
       }
     }
-  }, [visual.url, isCuratedDemo, defaultTopicSlide, activeTopicData, activeUrl]);
+  }, [visual.url, isDemoActive, defaultTopicSlide, activeTopicData, activeUrl]);
 
-  // When demo topic changes or new prompt begins, reset slide index
+  // When demo topic changes, immediately reset and display slide 1
   useEffect(() => {
     setCurrentSlideIndex(0);
-    if (isCuratedDemo && defaultTopicSlide) {
+    if (defaultTopicSlide) {
       setActiveUrl(defaultTopicSlide);
-    } else {
-      setActiveUrl(visual.url || null);
     }
-  }, [matchedTopicKey, defaultTopicSlide, isCuratedDemo, activeDemoTopic]);
+  }, [matchedTopicKey, defaultTopicSlide]);
 
   const currentSlide: DemoSlide | null = activeTopicData ? activeTopicData.slides[currentSlideIndex] : null;
 
@@ -216,53 +124,7 @@ export default function VisualAssistPanel({
   };
 
   // Determine if a slide or image is ready to display
-  const effectiveImageUrl = activeUrl || (isCuratedDemo && defaultTopicSlide) || null;
-  const isVerifiedSvg = Boolean(
-    isCuratedDemo &&
-    effectiveImageUrl && (
-      effectiveImageUrl.startsWith('/demo_images/') || 
-      effectiveImageUrl.endsWith('.svg') || 
-      activeTopicData !== null
-    )
-  );
-
-  // Detect subject domain to give proper educational iconography & styling
-  const detectedSubject = React.useMemo(() => {
-    const textToScan = `${activeDemoTopic || ''} ${visual.keyword || ''} ${visual.text || ''}`.toLowerCase();
-    if (/\b(math|maths|mathematics|algebra|calculus|geometry|quadratic|equation|pythagoras|matrix|differentiation|integration|theorem|solve|variable|fraction|integer|triangle|polynomial)\b/.test(textToScan)) {
-      return { name: "Mathematics", icon: "📐", color: "from-amber-300 via-yellow-200 to-amber-400" };
-    }
-    if (/\b(physics|gravity|motion|velocity|acceleration|newton|ohm|force|voltage|current|circuit|electricity|optics|light|wave|photon|thermodynamics|quantum)\b/.test(textToScan)) {
-      return { name: "Physics", icon: "⚡", color: "from-cyan-300 via-teal-200 to-sky-300" };
-    }
-    if (/\b(chemistry|molecule|atom|reaction|compound|acid|base|periodic|element|bond|electron|solvent)\b/.test(textToScan) && !/\b(math|solve|equation|algebra)\b/.test(textToScan)) {
-      return { name: "Chemistry", icon: "🧪", color: "from-emerald-300 via-teal-200 to-cyan-300" };
-    }
-    if (/\b(biology|cell|photosynthesis|plant|chloroplast|animal|dna|rna|genetics|heart|organ|organism|ecosystem|species)\b/.test(textToScan)) {
-      return { name: "Biology", icon: "🌿", color: "from-emerald-300 via-green-200 to-teal-300" };
-    }
-    if (/\b(economics|market|supply|demand|price|cost|profit|loss|gdp|inflation|trade|retail)\b/.test(textToScan)) {
-      return { name: "Economics", icon: "📈", color: "from-emerald-300 via-teal-200 to-sky-300" };
-    }
-    if (/\b(history|indus|valley|civilization|harappa|ancient|empire|dynasty|war|archaeology)\b/.test(textToScan)) {
-      return { name: "History", icon: "🏛️", color: "from-amber-300 via-orange-200 to-amber-400" };
-    }
-    return { name: activeDemoTopic || "Educational Lecture", icon: "📚", color: "from-emerald-300 via-teal-200 to-cyan-300" };
-  }, [activeDemoTopic, visual.keyword, visual.text]);
-
-  // Extract any mathematical/scientific formula present in the spoken explanation
-  const extractedFormula = React.useMemo(() => {
-    if (!visual.text) return null;
-    const match = visual.text.match(/([a-zA-Z0-9\s+\-*\/=^()_θπ²³°±≤≥√]+=[a-zA-Z0-9\s+\-*\/=^()_θπ²³°±≤≥√]+)/);
-    if (match && match[0].trim().length >= 3 && match[0].trim().length <= 45) {
-      return match[0].trim();
-    }
-    return null;
-  }, [visual.text]);
-
-  const hasExplanationSlide = Boolean(
-    !isVerifiedSvg && ((visual.text && visual.text.trim().length > 0) || activeDemoTopic || visual.url)
-  );
+  const effectiveImageUrl = activeUrl || (isDemoActive && defaultTopicSlide) || null;
 
   return (
     <div
@@ -289,23 +151,16 @@ export default function VisualAssistPanel({
 
       {/* Top Banner on the Green Board */}
       <div className="absolute top-2.5 sm:top-3 left-3 sm:left-4 right-3 sm:right-4 z-20 flex items-center justify-between pointer-events-auto gap-2">
-        {activeTopicData && isCuratedDemo ? (
+        {activeTopicData ? (
           <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-emerald-500/30 shadow-lg">
             <span className="text-sm">{activeTopicData.icon}</span>
             <span className="text-emerald-300 text-xs sm:text-sm font-bold tracking-wide">
               {activeTopicData.topicTitle}
             </span>
           </div>
-        ) : activeDemoTopic ? (
-          <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-emerald-500/30 shadow-lg">
-            <span className="text-sm">{detectedSubject.icon}</span>
-            <span className="text-emerald-300 text-xs sm:text-sm font-bold tracking-wide">
-              {activeDemoTopic}
-            </span>
-          </div>
         ) : visual.keyword ? (
           <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-emerald-500/30 shadow-lg">
-            <span className="text-sm">{detectedSubject.icon}</span>
+            <span className="text-sm">🎯</span>
             <span className="text-emerald-300 text-xs sm:text-sm font-bold uppercase tracking-wider">
               {visual.keyword}
             </span>
@@ -313,8 +168,8 @@ export default function VisualAssistPanel({
         ) : null}
       </div>
 
-      {/* 1. Verified Local SVG Diagram (Curated Quick Demos: Photosynthesis, Ohm's Law, etc.) */}
-      {isVerifiedSvg && effectiveImageUrl ? (
+      {/* Main Slide Presentation Stage: Rock-solid continuous presentation with zero blank frames */}
+      {effectiveImageUrl ? (
         <div className="absolute inset-0 p-2 sm:p-4 pt-8 sm:pt-10 pb-4 flex items-center justify-center [perspective:1400px]">
           <div className={`w-full h-full relative flex items-center justify-center transition-transform duration-500 ${isFlipping ? 'scale-[0.98]' : 'scale-100'}`}>
             <img
@@ -322,96 +177,18 @@ export default function VisualAssistPanel({
               alt={currentSlide?.title || visual.keyword || 'Chalkboard Slide'}
               className="w-full h-full object-contain rounded-xl drop-shadow-2xl transition-opacity duration-300"
               onError={() => {
+                // If specific slide fails, fallback to default slide of the topic so TV is never left blank
                 if (defaultTopicSlide && effectiveImageUrl !== defaultTopicSlide) {
                   setActiveUrl(defaultTopicSlide);
                 }
               }}
             />
+            {/* Subtle dynamic teaching pulse highlight */}
             <div className="absolute inset-0 pointer-events-none rounded-xl border border-emerald-400/20 shadow-[inset_0_0_24px_rgba(52,211,153,0.12)]" />
           </div>
         </div>
-      ) : hasExplanationSlide ? (
-        /* 2. Dynamic Chalkboard Presentation PPT Slide — Tailored to what Luna is speaking with little images */
-        <div className="absolute inset-0 p-3 sm:p-6 pt-12 sm:pt-14 pb-4 flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <div className="w-full max-w-[95%] bg-black/60 backdrop-blur-xl border-2 border-emerald-500/40 rounded-2xl p-4 sm:p-6 shadow-2xl flex flex-col gap-3 sm:gap-4 relative ring-1 ring-white/10">
-            
-            {/* Top Slide Header: Subject + Topic Badge + Live Speaker Badge */}
-            <div className="flex items-center justify-between gap-2 border-b border-emerald-500/20 pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-400/50 text-[10px] sm:text-xs font-bold text-emerald-300 flex items-center gap-1.5 uppercase tracking-wider">
-                  <span>{detectedSubject.icon}</span>
-                  <span>{detectedSubject.name}</span>
-                </span>
-                {activeDemoTopic && (
-                  <span className="text-xs sm:text-sm font-bold text-white/90 truncate max-w-[200px] sm:max-w-xs font-mono">
-                    {activeDemoTopic}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold text-emerald-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>Speaking & Signing</span>
-              </div>
-            </div>
-
-            {/* Slide Body: Little Image / Educational Illustration + Clear Presentation Points */}
-            <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6 py-1">
-              
-              {/* Visual Card: External image or Thematic Educational Vector Illustration */}
-              {visual.url && (visual.url.startsWith('http') || visual.url.startsWith('/')) ? (
-                <div className="w-28 h-28 sm:w-36 sm:h-36 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-400/40 shadow-xl bg-black/40 flex items-center justify-center relative">
-                  <img
-                    src={visual.url}
-                    alt={visual.keyword || 'Illustration'}
-                    className="w-full h-full object-contain p-1"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-950/60 to-black/80 border border-emerald-500/30 shadow-xl flex items-center justify-center p-2">
-                  <EducationalIllustration subject={detectedSubject.name} keyword={visual.keyword || activeDemoTopic} />
-                </div>
-              )}
-
-              {/* Presentation Text: Formatted what she is speaking */}
-              <div className="flex-1 flex flex-col gap-2.5 text-left min-w-0">
-                
-                {/* Active Concept Title */}
-                {visual.keyword && (
-                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-amber-300 tracking-wide uppercase font-mono">
-                    <span>✦</span>
-                    <span>{visual.keyword}</span>
-                  </div>
-                )}
-
-                {/* Formula Callout if any equation is present */}
-                {extractedFormula && (
-                  <div className="self-start px-3.5 py-1.5 rounded-xl bg-amber-950/80 border border-amber-400/60 shadow-lg shadow-amber-950/40">
-                    <span className="text-base sm:text-xl font-mono font-bold text-amber-200 tracking-wider">
-                      {extractedFormula}
-                    </span>
-                  </div>
-                )}
-
-                {/* Primary Spoken Explanation */}
-                <p className="text-base sm:text-xl md:text-2xl font-semibold leading-relaxed text-white drop-shadow-md font-sans">
-                  {visual.text || "Preparing lecture..."}
-                </p>
-              </div>
-            </div>
-
-            {/* Slide Footer: Educational Chalkboard Takeaway */}
-            <div className="flex items-center justify-between text-[11px] sm:text-xs text-emerald-400/80 pt-1 border-t border-emerald-500/10 font-medium">
-              <span>Interactive Classroom Demonstration</span>
-              <span>Signova AI Lecture Series</span>
-            </div>
-          </div>
-        </div>
       ) : (
-        /* 3. Classroom Chalkboard Empty Slate: Classic SIGNOVA Typography */
+        /* Classroom TV Empty Slate: Prominent, elegant, pure-white chalk typography */
         <div className="absolute inset-0 flex flex-col items-center justify-center p-3 sm:p-5 text-center pointer-events-none select-none gap-1.5 sm:gap-2.5 max-w-full overflow-hidden">
           <h3
             style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}

@@ -8,9 +8,8 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
   const [isOnline, setIsOnline] = useState(true);
   const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>('good');
   const [networkType, setNetworkType] = useState<string>('4g');
-  const [pingMs, setPingMs] = useState<number | null>(24);
+  const [pingMs, setPingMs] = useState<number | null>(null);
   const isPingingRef = useRef(false);
-  const consecutiveSlowCountRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -32,27 +31,19 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
         return;
       }
 
-      // Check browser Connection API for network type display (e.g. 4g, wifi)
+      // Check browser Connection API for immediate hint
       const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
       if (conn && conn.effectiveType) {
         setNetworkType(conn.effectiveType);
       }
 
-      // If WebSocket is actively connected and streaming, connection is 100% verified good
-      if (wsTeacherRef && wsTeacherRef.current && wsTeacherRef.current.readyState === WebSocket.OPEN) {
-        if (isMounted) {
-          setIsOnline(true);
-          setConnectionQuality('good');
-        }
-      }
-
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
       const startTime = performance.now();
 
       try {
         const res = await fetch('/api/ping', {
-          method: 'GET',
+          method: 'HEAD',
           cache: 'no-store',
           signal: controller.signal
         });
@@ -62,18 +53,46 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
 
         if (!isMounted) return;
 
+        if (!res.ok && res.status !== 204) {
+          // If ping endpoint returned an error, check if connection is poor
+          setConnectionQuality('poor');
+          setPingMs(latency);
+          return;
+        }
+
         setIsOnline(true);
-        setConnectionQuality('good');
-        setPingMs(latency > 0 ? latency : 18);
+        setPingMs(latency);
+
+        // Instant classification:
+        // - Good: latency < 250ms and not 2g/slow-2g
+        // - Poor (Slow Network): latency >= 250ms, or browser reports 2g/slow-2g or conn.rtt > 300
+        const isBrowserReportingSlow = conn && (
+          conn.effectiveType === 'slow-2g' ||
+          conn.effectiveType === '2g' ||
+          (conn.rtt && conn.rtt > 300)
+        );
+
+        if (latency >= 250 || isBrowserReportingSlow) {
+          setConnectionQuality('poor');
+        } else {
+          setConnectionQuality('good');
+        }
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (!isMounted) return;
 
-        // If navigator says we are online, always maintain good verified status
-        if (typeof navigator !== 'undefined' && navigator.onLine !== false) {
-          setIsOnline(true);
-          setConnectionQuality('good');
-          setPingMs(prev => prev || 24);
+        // If fetch failed or aborted, determine if totally offline or severely degraded
+        if (!navigator.onLine || err.name === 'AbortError') {
+          if (!navigator.onLine) {
+            setIsOnline(false);
+            setConnectionQuality('offline');
+            setPingMs(null);
+          } else {
+            // Timeout reached (2500ms) while navigator thinks it's online -> severely slow network
+            setIsOnline(true);
+            setConnectionQuality('poor');
+            setPingMs(2500);
+          }
         } else {
           setIsOnline(false);
           setConnectionQuality('offline');
@@ -111,8 +130,8 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
       conn.addEventListener('change', performPing);
     }
 
-    // Active ping check every 5.0s
-    const interval = setInterval(performPing, 5000);
+    // High frequency active check every 2.0s for instant detection
+    const interval = setInterval(performPing, 2000);
 
     return () => {
       isMounted = false;

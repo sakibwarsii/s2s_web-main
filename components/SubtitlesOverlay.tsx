@@ -14,37 +14,23 @@ export default function SubtitlesOverlay({ subtitles, isSpeaking = false }: Subt
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const raw = (subtitles || "").trim();
-    // Exclude standby prompts or empty text from displaying as movie captions
-    const isPlaceholder = !raw || 
-      raw.toLowerCase().includes("start the mic") ||
-      raw === "Start the mic to translate...";
-
-    if (!isPlaceholder) {
-      const formatted = formatProperSubtitles(raw, true);
-      if (formatted) {
-        setDisplayedText(formatted);
-        setIsVisible(true);
-        if (hideTimerRef.current) {
-          clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = null;
-        }
-        // Comfortable cinema reading duration (4.5s) after speech finishes
+    const formatted = formatProperSubtitles(subtitles, false);
+    if (formatted) {
+      setDisplayedText(formatted);
+      setIsVisible(true);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    } else {
+      // Keep previous sentence visible for 3.5s so students have comfortable time to read
+      if (displayedText && !hideTimerRef.current) {
         hideTimerRef.current = setTimeout(() => {
           setIsVisible(false);
+          setDisplayedText("");
           hideTimerRef.current = null;
-        }, 4500);
-        return;
+        }, 3500);
       }
-    }
-
-    // If input cleared or empty, gracefully fade out
-    if (displayedText && !hideTimerRef.current) {
-      hideTimerRef.current = setTimeout(() => {
-        setIsVisible(false);
-        setDisplayedText("");
-        hideTimerRef.current = null;
-      }, 4000);
     }
   }, [subtitles]);
 
@@ -54,24 +40,26 @@ export default function SubtitlesOverlay({ subtitles, isSpeaking = false }: Subt
     };
   }, []);
 
-  if (!displayedText) return null;
+  if (!isVisible || !displayedText) return null;
 
   return (
-    <div 
-      className={`absolute bottom-48 sm:bottom-52 md:bottom-56 landscape:bottom-36 inset-x-0 flex flex-col items-center z-[150] pointer-events-none px-3 sm:px-6 transition-opacity duration-300 ease-out ${
-        isVisible ? "opacity-100" : "opacity-0"
-      }`}
-    >
-      {/* Cinema-Grade Movie Subtitle Capsule - Elevated Cleanly Above Player & Control Buttons */}
+    <div className="absolute bottom-20 sm:bottom-28 md:bottom-32 landscape:bottom-16 inset-x-0 flex flex-col items-center z-[100] pointer-events-none px-3 sm:px-6 transition-all duration-300 animate-in fade-in zoom-in-95">
+      {/* High-contrast frosted glass with generous margin above control bar */}
       <div 
-        className="bg-black/90 backdrop-blur-xl px-5 py-2 sm:px-8 sm:py-3 landscape:py-1.5 landscape:px-4 rounded-2xl border border-white/20 shadow-[0_14px_45px_rgba(0,0,0,0.85)] max-w-[92%] sm:max-w-[78%] md:max-w-[70%] max-h-[14vh] sm:max-h-[16vh] landscape:max-h-[14vh] overflow-y-auto no-scrollbar pointer-events-auto select-none flex flex-col items-center justify-center text-center"
+        className="bg-black/90 backdrop-blur-2xl px-4 py-2.5 sm:px-8 sm:py-4 landscape:py-2 landscape:px-5 rounded-2xl sm:rounded-3xl border border-white/25 shadow-[0_14px_45px_rgba(0,0,0,0.8)] max-w-[94%] sm:max-w-[82%] landscape:max-w-[70%] max-h-[16vh] sm:max-h-[22vh] landscape:max-h-[18vh] overflow-y-auto no-scrollbar pointer-events-auto select-none transition-all duration-300 flex flex-col items-center gap-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
+        {isSpeaking && (
+          <div className="flex items-center gap-1.5 self-center pb-0.5 animate-in fade-in duration-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-300">
+              Live Speech
+            </span>
+          </div>
+        )}
         <p
-          className="text-sm sm:text-xl md:text-2xl landscape:text-base font-semibold text-center leading-relaxed tracking-wide text-white drop-shadow-md select-none font-sans"
-          style={{ 
-            textShadow: '0 2px 4px rgba(0,0,0,0.95), 0 0 16px rgba(0,0,0,0.85), 0 1px 2px #000' 
-          }}
+          className="text-sm sm:text-2xl md:text-3xl landscape:text-base font-semibold text-center leading-snug tracking-wide text-white drop-shadow-md select-none font-sans"
+          style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 16px rgba(0,0,0,0.7)' }}
         >
           {displayedText}
         </p>
@@ -79,4 +67,3 @@ export default function SubtitlesOverlay({ subtitles, isSpeaking = false }: Subt
     </div>
   );
 }
-

@@ -44,16 +44,6 @@ export function useCWASA(
   onChunkStart?: (chunk: PlayChunk) => void,
   onQueueFinish?: () => void
 ) {
-  const setSubtitlesRef = useRef(setSubtitles);
-  const onChunkStartRef = useRef(onChunkStart);
-  const onQueueFinishRef = useRef(onQueueFinish);
-
-  useEffect(() => {
-    setSubtitlesRef.current = setSubtitles;
-    onChunkStartRef.current = onChunkStart;
-    onQueueFinishRef.current = onQueueFinish;
-  }, [setSubtitles, onChunkStart, onQueueFinish]);
-
   const queue = useRef<PlayChunk[]>([]);
   const history = useRef<PlayChunk[]>([]);
   
@@ -208,8 +198,8 @@ export function useCWASA(
       updatePlayerState();
       
       // Notify caller that queue has finished
-      if (history.current.length > 0 && onQueueFinishRef.current) {
-        onQueueFinishRef.current();
+      if (onQueueFinish) {
+        onQueueFinish();
       }
 
       // Auto-return avatar to resting position with 2.5s graceful pause window
@@ -218,7 +208,7 @@ export function useCWASA(
       restTimer.current = setTimeout(() => {
         if (!isPlaying.current && queue.current.length === 0) {
           returnToRestPose();
-          if (setSubtitlesRef.current) setSubtitlesRef.current("");
+          if (setSubtitles) setSubtitles("");
         }
       }, 2500);
       return;
@@ -237,13 +227,13 @@ export function useCWASA(
 
     activeSlotIndex.current = pendingSlotIndex.current;
 
-    if (onChunkStartRef.current) onChunkStartRef.current(chunk);
+    if (onChunkStart) onChunkStart(chunk);
     history.current.push(chunk);
 
     const rawCaption = chunk.translated_text || chunk.text;
     const captionText = cleanVoiceSubtitles(rawCaption);
-    if (captionText && setSubtitlesRef.current) {
-      setSubtitlesRef.current(captionText, false);
+    if (captionText && setSubtitles) {
+      setSubtitles(captionText, false);
     }
 
     let combinedSigml = "<sigml>\n";
@@ -282,8 +272,8 @@ export function useCWASA(
         clearTimeout(unlockTimer.current);
         unlockTimer.current = null;
       }
-      if (captionText && setSubtitlesRef.current) {
-        setSubtitlesRef.current(captionText, true);
+      if (captionText && setSubtitles) {
+        setSubtitles(captionText, true);
       }
       playNextInQueue();
     };
@@ -319,8 +309,6 @@ export function useCWASA(
       signDone = true;
     }
 
-    const chunkStartTime = Date.now();
-
     if (hasAudio && activeAudio) {
       if (activeAudio.src !== chunk.audio_base64) {
         activeAudio.src = chunk.audio_base64!;
@@ -329,16 +317,15 @@ export function useCWASA(
       activeAudio.onended = () => {
         audioDone = true;
         checkComplete();
-        // Allow CWASA to complete gesture execution smoothly rather than aggressively cutting signs
+        // Grace period: If speech audio ended but sign animation idle hasn't fired after 750ms,
+        // force sign completion so the avatar NEVER gets stuck or lags!
         if (!signDone) {
-          const elapsed = Date.now() - chunkStartTime;
-          const remainingSignMs = Math.max(estimatedSignDuration - elapsed, 1000);
           setTimeout(() => {
             if (!signDone) {
               signDone = true;
               checkComplete();
             }
-          }, remainingSignMs);
+          }, 750);
         }
       };
       activeAudio.play().catch(e => {
@@ -350,8 +337,8 @@ export function useCWASA(
       audioDone = true;
     }
 
-    // Adaptive safety net: allows full sign execution
-    const maxSafetyMs = Math.max(estimatedSignDuration + 1500, 3500);
+    // Adaptive safety net: never stall for 8000ms! Average sign is ~1.3s
+    const maxSafetyMs = Math.min(Math.max(estimatedSignDuration + 500, 1800), 4500);
     unlockTimer.current = setTimeout(() => {
       advance();
     }, maxSafetyMs);

@@ -118,7 +118,6 @@ export default function MobileInteractiveDock({
           </button>
         </div>
 
-
         {/* Upload Media / PDF */}
         <button
           onClick={onUploadClick}

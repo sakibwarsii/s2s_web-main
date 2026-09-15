@@ -23,35 +23,11 @@ import { Rnd } from 'react-rnd';
 import { getAvatarGender, getVoiceForLanguage } from "../../lib/voiceGender";
 import { playCompletionChime } from "../../lib/soundEffects";
 import { cleanVoiceSubtitles, formatProperSubtitles } from "../../lib/subtitleUtils";
-import { textToSiGML } from "../../lib/clientSignConverter";
 
 export default function Home() {
   // --- UI STATE ---
   const [isScreenshare, setIsScreenshare] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    if (typeof document === "undefined") return;
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch((err) => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen?.().catch((err) => {
-        console.error(`Error attempting to disable full-screen mode: ${err.message}`);
-      });
-    }
-  }, []);
-
   const [isPdfAnnotate, setIsPdfAnnotate] = useState(false);
   const [isControlBarVisible, setIsControlBarVisible] = useState(true);
   const controlBarTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,41 +36,32 @@ export default function Home() {
   const [isMobileScreen, setIsMobileScreen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAITools, setShowAITools] = useState(false);
-  const [subtitles, setSubtitles] = useState("");
+  const [subtitles, setSubtitles] = useState("Start the mic to translate...");
   const [isClient, setIsClient] = useState(false);
   const [showAvatarBg, setShowAvatarBg] = useState(false);
   // Multiplier (1-4) applied on top of the PiP box's natural zoom, so the
   // avatar can be made noticeably bigger without resizing the box itself.
-  // Default bumped from 1 to 2.5 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  the avatar was reported too small to
+  // Default bumped from 1 to 2.5 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the avatar was reported too small to
   // present with by default. This grows the SAME box+scale mechanism the
   // Character Size Settings buttons already use (Rnd box size AND the
   // avatar's internal render scale move together), not just an invisible
-  // frame around an unchanged-size avatar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  see SignAvatar.tsx.
+  // frame around an unchanged-size avatar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â see SignAvatar.tsx.
   // REVERTED 5 -> 2.5: characterScale sizes the outer DRAGGABLE box itself
   // (rndBox.size * characterScale), not just how zoomed the avatar looks.
-  // At 5x that box was 1900x2400px ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  bigger than almost any real browser
+  // At 5x that box was 1900x2400px ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger than almost any real browser
   // window. The window can only show a small window into a box that size,
   // landing wherever it happens to overlap (confirmed live: an extreme
   // close-up on her face/neck, not a deliberate crop). 2.5x (950x1200) is
   // the size actually confirmed working with a real head-to-waist result.
-  // Further "bigger" should go through CROP_ZOOM in SignAvatar.tsx instead ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 
+  // Further "bigger" should go through CROP_ZOOM in SignAvatar.tsx instead ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
   // that zooms the content within a box that stays this same safe size,
   // rather than growing the box itself past what a screen can show.
-  const [characterScale, setCharacterScale] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("static_character_scale_v5");
-      if (saved) {
-        const val = parseFloat(saved);
-        if (!isNaN(val) && val >= 1) return val;
-      }
-    }
-    return 2.5;
-  });
-  // Display-only movie subtitles: merge caption fragments into the full current
-  // sentence. Default true for smooth movie-like captions.
-  const [fullSentenceCaptions, setFullSentenceCaptions] = useState(true);
+  const [characterScale, setCharacterScale] = useState(1.5);
+  // Display-only opt-in: merge caption fragments into the full current
+  // sentence. Default off ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â current fragment-per-chunk captions unchanged.
+  const [fullSentenceCaptions, setFullSentenceCaptions] = useState(false);
   // Opt-in richer classroom visuals (bezel, lighting, ground shadow).
-  // Default off ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  current look unchanged unless the user turns this on.
+  // Default off ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â current look unchanged unless the user turns this on.
   const [classroomAmbience, setClassroomAmbience] = useState(false);
 
   // --- TTS & TRANSLATION STATE ---
@@ -174,7 +141,6 @@ export default function Home() {
     }
   };
 
-
   // Full-Sentence Captions (opt-in toggle): useCWASA's chunk playback shows
   // one 5-word sign-timing fragment at a time as its own caption — accurate
   // for timing, but reads as a raw mid-sentence chunk ("called chlorophyll,
@@ -185,9 +151,7 @@ export default function Home() {
   // DISPLAY — sign/audio timing is untouched, each fragment still drives
   // playback exactly as before, this only changes what text is shown.
   const sentenceBufferRef = useRef<string[]>([]);
-  const isRecordingRef = useRef(false);
   const handleChunkSubtitles = (text: string, isFinal?: boolean) => {
-    if (isRecordingRef.current) return;
     const cleaned = formatProperSubtitles(text, isFinal);
     if (!cleaned) {
       setSubtitles("");
@@ -203,9 +167,8 @@ export default function Home() {
     // it finishes, which should just redisplay the buffer, not double-add it.
     if (!isFinal) {
       const buf = sentenceBufferRef.current;
-      const joinedLen = buf.join(' ').length;
-      // Previous sentence ended (fragment ended in . ! ? ।) or buffer exceeded comfortable cinema size (110 chars / 2 phrases)
-      if ((buf.length > 0 && /[.!?।]\s*$/.test(buf[buf.length - 1])) || joinedLen > 110 || buf.length >= 2) {
+      // Previous sentence already ended (fragment ended in . ! or ?) — start fresh.
+      if (buf.length > 0 && /[.!?।]\s*$/.test(buf[buf.length - 1])) {
         sentenceBufferRef.current = [];
       }
       sentenceBufferRef.current = [...sentenceBufferRef.current, cleaned];
@@ -224,10 +187,8 @@ export default function Home() {
   // --- QUICK DEMO & COMPLETION STATE ---
   const [isDemoActive, setIsDemoActive] = useState(false);
   const isDemoActiveRef = useRef(false);
-  const [isCuratedDemo, setIsCuratedDemo] = useState(false);
   const [activeDemoTopic, setActiveDemoTopic] = useState<string | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const lastDemoChunksRef = useRef<PlayChunk[]>([]);
 
   const handleQueueFinish = () => {
     if (isDemoActiveRef.current) {
@@ -235,55 +196,27 @@ export default function Home() {
       setShowCompletionModal(true);
       setIsDemoActive(false);
       isDemoActiveRef.current = false;
-      setIsCuratedDemo(false);
       returnToRestPose();
-      setSubtitles("");
+      setSubtitles("Lesson completed. Well done!");
     }
   };
 
   // --- CUSTOM HOOKS ---
   const { enqueueSiGML, enqueueChunks, pause, resume, skipForward, skipBackward, playerState, stopAll, returnToRestPose } = useCWASA(handleChunkSubtitles, onChunkStart, handleQueueFinish);
 
-
   const stopDemoLecture = useCallback(() => {
     setIsDemoActive(false);
     isDemoActiveRef.current = false;
-    setIsCuratedDemo(false);
     setActiveDemoTopic(null);
     stopAll();
     returnToRestPose();
     clearVisual();
-    setSubtitles("");
+    setSubtitles("Start the mic to translate...");
     setShowCompletionModal(false);
   }, [stopAll, returnToRestPose, clearVisual]);
 
-  const handleAIToolsSuccess = (chunks: PlayChunk[], options?: { replace?: boolean }, topicTitle?: string) => {
+  const handleAIToolsSuccess = (chunks: PlayChunk[], options?: { replace?: boolean }) => {
     if (chunks && chunks.length > 0) {
-      if (!isVisualAssistEnabled) {
-        setIsVisualAssistEnabled(true);
-        localStorage.setItem('visual_assist_enabled', 'true');
-      }
-      setIsDemoActive(true);
-      isDemoActiveRef.current = true;
-      setIsCuratedDemo(false); // Prompt-to-Sign is dynamic AI presentation, NOT a static curated demo
-      setShowCompletionModal(false);
-      lastDemoChunksRef.current = chunks;
-      const title = topicTitle || "AI Lecture";
-      setActiveDemoTopic(title);
-
-      // Preload visuals
-      chunks.forEach(c => {
-        if (c.visual_url && typeof window !== 'undefined') {
-          const img = new Image();
-          img.src = c.visual_url;
-        }
-      });
-
-      const firstChunkWithVisual = chunks.find(c => c.visual_url || c.text);
-      if (firstChunkWithVisual) {
-        onChunkStart(firstChunkWithVisual);
-      }
-
       enqueueChunks(chunks, options);
     }
   };
@@ -301,30 +234,13 @@ export default function Home() {
       if (isRecording) {
         toggleMic();
       }
-      // Mutual exclusivity: stop cast, close whiteboard, close screenshare/media & modals
-      stopCastAudio();
-      setIsWhiteboardOpen(false);
-      setIsPdfAnnotate(false);
-      setShowAITools(false);
-      setShowSettings(false);
-      if (videoRef.current && videoRef.current.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      setPresentationFileUrl(null);
-      setPresentationFileType(null);
-      setIsScreenshare(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-
       if (!isVisualAssistEnabled) {
         setIsVisualAssistEnabled(true);
         localStorage.setItem('visual_assist_enabled', 'true');
       }
       setIsDemoActive(true);
       isDemoActiveRef.current = true;
-      setIsCuratedDemo(true);
       setShowCompletionModal(false);
-      lastDemoChunksRef.current = chunks;
       if (topicTitle) setActiveDemoTopic(topicTitle);
 
       // Preload all slideshow images into browser cache for 0ms transitions
@@ -381,10 +297,6 @@ export default function Home() {
     isRecording, isSpeaking, stopMic, toggleMic, statusText, statusColor, visualizerRefs, sttMode, setSttMode 
   } = useSpeechRecognition(wsTeacherRef, targetLanguage, sessionId, handleSetSubtitles);
 
-  useEffect(() => {
-    isRecordingRef.current = isRecording;
-  }, [isRecording]);
-
   const {
     isCastAudioActive,
     isSpeaking: isCastSpeaking,
@@ -422,36 +334,12 @@ export default function Home() {
     });
   }, [presentationFileType, startVideoElementAudio, startStreamAudio, stopCastAudio]);
 
-  const resetAvatarState = useCallback(() => {
+  const handleGoBack = useCallback(() => {
+    // ALWAYS refresh the character, clear any queued signs, and return to rest pose
     stopDemoLecture();
     stopCastAudio();
     stopAll();
     returnToRestPose();
-    setSubtitles("");
-    sentenceBufferRef.current = [];
-  }, [stopDemoLecture, stopCastAudio, stopAll, returnToRestPose]);
-
-  const handleToggleBoard = useCallback(() => {
-    resetAvatarState();
-    // Mutual exclusivity: Close Screenshare / Video presentation / Sign Camera / Demos / Modals
-    if (presentationFileUrl) {
-      setPresentationFileUrl(null);
-      setPresentationFileType(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-    if (videoRef.current && videoRef.current.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsScreenshare(false);
-    setShowAITools(false);
-    setShowSettings(false);
-    setIsWhiteboardOpen(prev => !prev);
-  }, [resetAvatarState, presentationFileUrl]);
-
-  const handleGoBack = useCallback(() => {
-    // ALWAYS refresh the character, clear any queued signs, and return to rest pose
-    resetAvatarState();
 
     // 1. If Whiteboard is open, close Whiteboard and return to previous view
     if (isWhiteboardOpen) {
@@ -490,9 +378,13 @@ export default function Home() {
       return;
     }
 
-    // 5. Stay on refreshed classroom page, never navigate back to try demo landing page
+    // 5. Navigate back in browser history or to root
     if (typeof window !== 'undefined') {
-      window.location.href = "/classroom";
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "/";
+      }
     }
   }, [
     isWhiteboardOpen,
@@ -529,7 +421,7 @@ export default function Home() {
     setIsWhiteboardOpen(false);
     setIsDemoActive(false);
     isDemoActiveRef.current = false;
-    setSubtitles("");
+    setSubtitles("Start the mic to translate...");
     setShowCompletionModal(false);
     window.location.href = "/classroom";
   };
@@ -698,7 +590,6 @@ export default function Home() {
     }
     const savedFullSentenceCaptions = localStorage.getItem("static_full_sentence_captions");
     if (savedFullSentenceCaptions !== null) setFullSentenceCaptions(savedFullSentenceCaptions === 'true');
-    else setFullSentenceCaptions(true);
     const savedClassroomAmbience = localStorage.getItem("static_classroom_ambience");
     if (savedClassroomAmbience !== null) setClassroomAmbience(savedClassroomAmbience === 'true');
 
@@ -821,7 +712,7 @@ export default function Home() {
   useEffect(() => { localStorage.setItem("static_target_language", targetLanguage); }, [targetLanguage]);
   useEffect(() => { localStorage.setItem("static_target_voice_v2", targetVoice); }, [targetVoice]);
   useEffect(() => { localStorage.setItem("static_tts_enabled", String(ttsEnabled)); }, [ttsEnabled]);
-  useEffect(() => { localStorage.setItem("static_character_scale_v5", String(characterScale)); }, [characterScale]);
+  useEffect(() => { localStorage.setItem("static_character_scale_v4", String(characterScale)); }, [characterScale]);
   useEffect(() => { localStorage.setItem("static_full_sentence_captions", String(fullSentenceCaptions)); }, [fullSentenceCaptions]);
   useEffect(() => { localStorage.setItem("static_classroom_ambience", String(classroomAmbience)); }, [classroomAmbience]);
 
@@ -925,11 +816,8 @@ export default function Home() {
   // --- SCREENSHARE & UPLOAD LOGIC ---
 
   const toggleScreenshare = async () => {
-    // Immediately reset avatar state, stop demos, close whiteboard & modals
-    resetAvatarState();
-    setIsWhiteboardOpen(false);
-    setShowAITools(false);
-    setShowSettings(false);
+    // Immediately stop demo lecture & sign language
+    stopDemoLecture();
 
     if (!isScreenshare || presentationFileUrl) {
       try {
@@ -948,7 +836,7 @@ export default function Home() {
         startStreamAudio(stream);
 
         stream.getVideoTracks()[0].onended = () => {
-          resetAvatarState();
+          stopCastAudio();
           castStreamRef.current = null;
           setIsScreenshare(false);
           if (videoRef.current) videoRef.current.srcObject = null;
@@ -957,7 +845,7 @@ export default function Home() {
         console.error("Screenshare failed", err);
       }
     } else {
-      resetAvatarState();
+      stopCastAudio();
       castStreamRef.current = null;
       if (videoRef.current && videoRef.current.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
@@ -971,12 +859,9 @@ export default function Home() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Immediately reset avatar state, close whiteboard & modals
-    resetAvatarState();
-    setIsWhiteboardOpen(false);
-    setShowAITools(false);
-    setShowSettings(false);
-
+    // Immediately stop demo lecture & sign language
+    stopDemoLecture();
+    stopCastAudio();
     const url = URL.createObjectURL(file);
     setPresentationFileUrl(url);
     
@@ -1042,20 +927,24 @@ export default function Home() {
               {/* Room / Network Badge */}
               <div className="bg-black/65 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-white/10 px-1.5 sm:px-3 py-1 sm:py-1.5 flex items-center gap-1.5 shadow-xl text-[10px] sm:text-sm text-gray-300">
                 <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${
-                  !isOnline || connectionQuality === 'offline' 
+                  connectionQuality === 'offline' 
                     ? 'bg-red-500 ring-2 ring-red-400 animate-ping' 
-                    : 'bg-emerald-400 animate-pulse'
+                    : connectionQuality === 'poor' 
+                      ? 'bg-amber-400 animate-pulse' 
+                      : 'bg-emerald-400 animate-pulse'
                 }`} />
                 <span className="font-mono text-white/90 font-medium">
                   {sessionId ? sessionId.slice(-4).toUpperCase() : '...'}
                 </span>
                 {/* Real-time Ping Latency Display */}
                 <span className={`text-[9px] sm:text-xs font-mono px-1 py-0.5 rounded font-bold ${
-                  !isOnline || connectionQuality === 'offline'
+                  connectionQuality === 'offline'
                     ? 'text-red-400 bg-red-950/60'
-                    : 'text-emerald-400 bg-emerald-950/60'
+                    : connectionQuality === 'poor'
+                      ? 'text-amber-300 bg-amber-950/60'
+                      : 'text-emerald-400 bg-emerald-950/60'
                 }`}>
-                  {!isOnline || connectionQuality === 'offline' ? 'Offline' : (pingMs !== null ? `${pingMs}ms` : 'Good')}
+                  {connectionQuality === 'offline' ? 'Offline' : (pingMs !== null ? `${pingMs}ms` : 'Good')}
                 </span>
                 <button
                   onClick={resetSession}
@@ -1119,21 +1008,6 @@ export default function Home() {
                   ))}
                 </div>
               )}
-
-              {/* Fullscreen / Expand Button */}
-              <div className="bg-black/65 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-white/10 p-0.5 sm:p-1 flex items-center shadow-xl">
-                <button
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                  className={`w-6 h-6 sm:w-10 sm:h-8 rounded-lg text-xs sm:text-base flex items-center justify-center transition-all cursor-pointer ${
-                    isFullscreen
-                      ? 'bg-teal-500/30 text-teal-300 shadow-sm'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'} text-xs sm:text-sm`}></i>
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -1224,6 +1098,17 @@ export default function Home() {
         </div>
       )}
 
+      {/* Instant Slow Network Alert Banner */}
+      {isOnline && connectionQuality === 'poor' && (
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[250] flex items-center gap-2.5 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl shadow-2xl shadow-amber-950/60 border border-amber-400/50 backdrop-blur-xl animate-pulse pointer-events-auto">
+          <span className="text-base sm:text-lg">⚡</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-xs sm:text-sm">Slow Network Detected ({pingMs !== null ? `${pingMs}ms` : 'High Latency'})</span>
+            <span className="text-[10px] sm:text-xs text-amber-100">Audio and sign language may experience minor buffering</span>
+          </div>
+        </div>
+      )}
+
 
 
 
@@ -1266,25 +1151,7 @@ export default function Home() {
         <div className="w-full h-full relative flex justify-center items-center">
           {presentationFileUrl ? (
             presentationFileType === 'video' ? (
-              <video 
-                ref={presentationVideoRef} 
-                src={presentationFileUrl} 
-                autoPlay 
-                loop 
-                muted={isVideoMuted} 
-                playsInline 
-                onPlay={() => {
-                  if (presentationVideoRef.current && isAutoSignEnabled) {
-                    startVideoElementAudio(presentationVideoRef.current);
-                  }
-                }}
-                onLoadedData={() => {
-                  if (presentationVideoRef.current && isAutoSignEnabled) {
-                    startVideoElementAudio(presentationVideoRef.current);
-                  }
-                }}
-                className="w-full h-full object-contain relative z-10" 
-              />
+              <video ref={presentationVideoRef} src={presentationFileUrl} autoPlay loop muted={isVideoMuted} playsInline className="w-full h-full object-contain relative z-10" />
             ) : presentationFileType === 'pdf' ? (
               <iframe src={`${presentationFileUrl}#toolbar=1&navpanes=0`} className="w-full h-full relative z-10 bg-white" title="PDF Presentation" />
             ) : (
@@ -1319,11 +1186,7 @@ export default function Home() {
             {isWhiteboardOpen && (
               <SmartWhiteboard
                 isOpen={isWhiteboardOpen}
-                onClose={() => {
-                  resetAvatarState();
-                  setIsWhiteboardOpen(false);
-                  setIsPdfAnnotate(false);
-                }}
+                onClose={() => setIsWhiteboardOpen(false)}
                 targetLanguage={targetLanguage}
                 targetVoice={targetVoice}
                 ttsEnabled={ttsEnabled}
@@ -1365,7 +1228,6 @@ export default function Home() {
                         embedded
                         activeDemoTopic={activeDemoTopic}
                         isDemoActive={isDemoActive}
-                        isCuratedDemo={isCuratedDemo}
                         onUploadClick={() => {
                           stopDemoLecture();
                           fileInputRef.current?.click();
@@ -1543,42 +1405,24 @@ export default function Home() {
 
 
 
-      {/* Lecture Completion Celebration Modal */}
+      {/* Lesson Completion Celebration Modal */}
       {showCompletionModal && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in zoom-in duration-300">
           <div className="bg-gradient-to-b from-slate-900 via-slate-900/98 to-slate-950 border-2 border-emerald-400/50 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-[0_20px_70px_rgba(16,185,129,0.35)] relative ring-1 ring-white/10">
             <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 mx-auto flex items-center justify-center mb-4 text-4xl shadow-lg shadow-emerald-500/30 animate-bounce">
               🎉
             </div>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-2 tracking-wide flex items-center justify-center gap-2">
-              <span className="text-emerald-300 drop-shadow-[0_2px_10px_rgba(52,211,153,0.5)]">Lecture</span>
-              <span className="text-teal-200 drop-shadow-[0_2px_10px_rgba(45,212,191,0.5)]">Finished!</span>
+            <h3 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 mb-2 drop-shadow-sm tracking-wide">
+              Lesson Completed!
             </h3>
             <p className="text-slate-200 text-sm sm:text-base mb-6 leading-relaxed">
-              Great job! The lecture on{" "}
-              <span className="text-emerald-300 font-bold underline decoration-emerald-500/50 decoration-2">{activeDemoTopic || "the topic"}</span> has ended.
+              Great job! You have finished the demo lesson on{" "}
+              <span className="text-emerald-300 font-bold underline decoration-emerald-500/50 decoration-2">{activeDemoTopic || "the topic"}</span>.
             </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              {lastDemoChunksRef.current && lastDemoChunksRef.current.length > 0 && (
-                <button
-                  onClick={() => {
-                    setShowCompletionModal(false);
-                    setIsDemoActive(true);
-                    isDemoActiveRef.current = true;
-                    enqueueChunks(lastDemoChunksRef.current, { replace: true });
-                  }}
-                  className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm sm:text-base transition-all active:scale-95 cursor-pointer flex items-center gap-2"
-                >
-                  <i className="fas fa-rotate-right text-emerald-400"></i>
-                  <span>Replay Lecture</span>
-                </button>
-              )}
+            <div className="flex gap-3 justify-center">
               <button
-                onClick={() => {
-                  setShowCompletionModal(false);
-                  stopDemoLecture();
-                }}
-                className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm sm:text-base transition-all shadow-xl shadow-emerald-500/30 active:scale-95 hover:scale-105 cursor-pointer"
+                onClick={() => setShowCompletionModal(false)}
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm sm:text-base transition-all shadow-xl shadow-emerald-500/30 active:scale-95 hover:scale-105 cursor-pointer"
               >
                 Back to Classroom
               </button>
@@ -1587,19 +1431,27 @@ export default function Home() {
         </div>
       )}
 
-      {/* Pinned Bottom-Left Wifi Status Indicator — Only shown when offline */}
-      {!isOnline && (
+      {/* Pinned Bottom-Left Wifi Status Indicator — Red when offline, Yellow when poor, Hidden when good */}
+      {(!isOnline || connectionQuality !== 'good') && (
         <div 
-          className="fixed bottom-4 left-4 z-[280] flex items-center gap-2 px-3 py-1.5 rounded-full shadow-2xl backdrop-blur-xl border border-red-500/80 bg-red-950/95 text-red-200 ring-2 ring-red-500/50 shadow-red-950/60 animate-pulse pointer-events-auto select-none"
-          title="No internet connection"
+          className={`fixed bottom-4 left-4 z-[280] flex items-center gap-2 px-3 py-1.5 rounded-full shadow-2xl backdrop-blur-xl border transition-all duration-300 pointer-events-auto select-none ${
+            !isOnline || connectionQuality === 'offline'
+              ? 'bg-red-950/95 border-red-500/80 text-red-200 ring-2 ring-red-500/50 shadow-red-950/60 animate-pulse'
+              : 'bg-amber-950/95 border-amber-500/80 text-amber-200 ring-2 ring-amber-500/50 shadow-amber-950/60'
+          }`}
+          title={!isOnline || connectionQuality === 'offline' ? 'No internet connection' : 'Poor/Slow internet connection'}
         >
-          <span className="text-base sm:text-lg flex items-center justify-center text-red-400">
+          <span className={`text-base sm:text-lg flex items-center justify-center ${
+            !isOnline || connectionQuality === 'offline' ? 'text-red-400' : 'text-yellow-400'
+          }`}>
             📶
           </span>
           <span className="text-[11px] sm:text-xs font-semibold tracking-wide">
-            No Connection
+            {!isOnline || connectionQuality === 'offline' ? 'No Connection' : 'Slow Network'}
           </span>
-          <span className="w-2 h-2 rounded-full shrink-0 bg-red-500 animate-ping" />
+          <span className={`w-2 h-2 rounded-full shrink-0 ${
+            !isOnline || connectionQuality === 'offline' ? 'bg-red-500 animate-ping' : 'bg-yellow-400 animate-pulse'
+          }`} />
         </div>
       )}
 
@@ -1624,13 +1476,13 @@ export default function Home() {
           isSpeaking={isSpeaking}
           toggleMic={toggleMic}
           isWhiteboardOpen={isWhiteboardOpen}
-          onToggleBoard={handleToggleBoard}
+          onToggleBoard={() => {
+            stopDemoLecture();
+            setIsWhiteboardOpen(prev => !prev);
+          }}
           onOpenAITools={() => setShowAITools(true)}
           onUploadClick={() => {
-            resetAvatarState();
-            setIsWhiteboardOpen(false);
-            setShowAITools(false);
-            setShowSettings(false);
+            stopDemoLecture();
             if (presentationFileUrl) {
               setPresentationFileUrl(null);
               setPresentationFileType(null);
@@ -1658,15 +1510,15 @@ export default function Home() {
           toggleScreenshare={toggleScreenshare}
           setShowSettings={setShowSettings}
           setShowAITools={setShowAITools}
-          onToggleBoard={handleToggleBoard}
+          onToggleBoard={() => {
+            stopDemoLecture();
+            setIsWhiteboardOpen(prev => !prev);
+          }}
           isBoardOpen={isWhiteboardOpen}
           isAutoHidden={isActivelyTeaching && !isControlBarVisible}
           onUserActivity={showControlBarTemporarily}
           onUploadClick={() => {
-            resetAvatarState();
-            setIsWhiteboardOpen(false);
-            setShowAITools(false);
-            setShowSettings(false);
+            stopDemoLecture();
             if (presentationFileUrl) {
               setPresentationFileUrl(null);
               setPresentationFileType(null);
@@ -1679,8 +1531,8 @@ export default function Home() {
         />
       )}
 
-      {/* Dedicated Clean Playback Bar for Demos & Prompt-to-Sign (Pause/Play, 5s Undo, 5s Redo) */}
-      {(isDemoActive || playerState.playing || playerState.hasQueue || playerState.hasHistory) && (
+      {/* Dedicated Clean Demo Playback Bar (Pause/Play, 5s Undo, 5s Redo) */}
+      {isDemoActive && (
         <PlayerControls
           playerState={playerState}
           skipBackward={skipBackward}
@@ -1744,7 +1596,6 @@ export default function Home() {
           <span className="text-sm font-medium text-white">{aiProcessingStatus}</span>
         </div>
       )}
-
 
     </main>
   );

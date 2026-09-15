@@ -7,8 +7,13 @@ import type { NextConfig } from "next";
 // `npm run dev` behaves exactly as before with zero setup. Set
 // BACKEND_URL in Vercel's project settings to the deployed backend's
 // actual URL (e.g. https://your-app.up.railway.app) once it exists.
-const rawBackendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'https://signova-backend-baas.onrender.com';
-// Defensive: if BACKEND_URL is set but missing its scheme, normalize it
+const rawBackendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
+// Defensive: if BACKEND_URL is set but missing its scheme (e.g. someone pastes
+// just "xxx.up.railway.app" instead of "https://xxx.up.railway.app" — an easy
+// slip when copying from Railway's UI), Next's rewrites() rejects the
+// resulting destination outright at build time ("Invalid rewrites found"),
+// failing the whole deploy with no build output at all. Normalize instead of
+// trusting the env var to always include http(s)://.
 const backendUrl = /^https?:\/\//i.test(rawBackendUrl) ? rawBackendUrl : `https://${rawBackendUrl}`;
 
 const nextConfig: NextConfig = {
@@ -18,7 +23,7 @@ const nextConfig: NextConfig = {
     'localhost:3000'
   ],
   experimental: {
-    proxyClientMaxBodySize: 50 * 1024 * 1024,
+    middlewareClientMaxBodySize: 50 * 1024 * 1024,
   },
   images: {
     // Allow external images from all domains used by Visual Assist
@@ -30,12 +35,12 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/ws/:path*',
-        destination: `${backendUrl}/ws/:path*` // Proxy WebSocket requests to backend
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*` // Proxy API requests to backend
       },
       {
-        source: '/api/:path((?!ping).*)',
-        destination: `${backendUrl}/api/:path*` // Proxy API requests except ping to backend
+        source: '/ws/:path*',
+        destination: `${backendUrl}/ws/:path*` // Proxy WebSocket requests to backend
       }
     ];
   }

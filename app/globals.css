@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-blue: #3b82f6;
+  --color-brand-red: #ef4444;
+  --color-brand-green: #10b981;
+}
+
+@layer base {
+  body {
+    background-color: #38bdf8;
+    background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 45%, #0284c7 100%) fixed;
+    color: #ffffff;
+    overflow-x: hidden;
+  }
+}
+
+.bg-sky-gradient {
+  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 45%, #0284c7 100%) fixed;
+}
+
+.bg-colorful-gradient {
+  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 45%, #0284c7 100%) fixed;
+}
+
+
+/* Custom Driver.js Theme */
+.driverjs-theme {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+.driver-popover-title {
+  color: #60a5fa !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+}
+.driver-popover-description {
+  color: #cbd5e1 !important;
+  font-size: 0.95rem !important;
+}
+.driver-popover-progress-text {
+  color: #94a3b8 !important;
+}
+.driver-popover-close-btn {
+  color: #fff !important;
+  opacity: 0.7 !important;
+}
+.driver-popover-close-btn:hover {
+  opacity: 1 !important;
+}
+.driver-popover-next-btn, .driver-popover-prev-btn {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+  border: none !important;
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+
+/* Hide scrollbars cross-browser */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+
+/* Eradicate text-selection caret during avatar drag */
+body.react-draggable-transparent-selection,
+body.react-draggable-transparent-selection * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  caret-color: transparent !important;
+  cursor: grabbing !important;
+}
+
+.avatar-character-handle {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  caret-color: transparent !important;
+}

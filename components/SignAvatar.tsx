@@ -235,13 +235,9 @@ export default function SignAvatar({ avatarName, isScreenshare, isVisualAssist, 
   // DEFAULT_SCALE. displayScale is the ONE CSS transform value that gets
   // us there from the fixed BASE_RENDER_HEIGHT native render, then
   // CROP_ZOOM zooms in further for the head-to-waist crop above.
-  const rawVisualHeight = isPip
+  const targetVisualHeight = isPip
     ? (pipBoxHeight || PIP_BASE_HEIGHT)
     : PIP_BASE_HEIGHT * DEFAULT_SCALE;
-  // Ensure avatar fits within viewport height so hands are never cut off below the screen
-  const targetVisualHeight = typeof window !== 'undefined'
-    ? Math.min(rawVisualHeight, Math.max(360, window.innerHeight * 0.84))
-    : rawVisualHeight;
   const displayScale = (targetVisualHeight / BASE_RENDER_HEIGHT) * CROP_ZOOM;
 
   // REVERTED: an earlier speculative "warm-up" call used to fire here â€”
@@ -277,7 +273,7 @@ export default function SignAvatar({ avatarName, isScreenshare, isVisualAssist, 
               "initAv": underlyingAvatar,
               "width": BASE_RENDER_WIDTH,
               "height": BASE_RENDER_HEIGHT,
-              "initCamera": [0, 0.0, 4.3, 0, 0, 30, -1, -1]
+              "initCamera": [0, 0.12, 3.8, 0, 4, 28, -1, -1]
             }
           ],
           "av0.bkgnd": "transparent"
@@ -298,7 +294,7 @@ export default function SignAvatar({ avatarName, isScreenshare, isVisualAssist, 
                   "initAv": underlyingAvatar,
                   "width": BASE_RENDER_WIDTH,
                   "height": BASE_RENDER_HEIGHT,
-                  "initCamera": [0, 0.0, 4.3, 0, 0, 30, -1, -1]
+                  "initCamera": [0, 0.12, 3.8, 0, 4, 28, -1, -1]
                 }
               ],
               "av0.bkgnd": "transparent"
