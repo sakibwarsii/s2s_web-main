@@ -109,8 +109,8 @@ export default function SignCameraDetector({
     isCloudBusyRef.current = true;
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://signova-backend-baas.onrender.com";
-      const res = await fetch(`${backendUrl}/api/recognize_sign`, {
+      // 1. Try ultra-fast Next.js serverless route with Groq Vision directly on Vercel
+      let res: Response | null = await fetch('/api/recognize_sign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,8 +118,23 @@ export default function SignCameraDetector({
           landmarks: landmarks,
           num_hands: landmarks.length
         })
-      });
-      if (res.ok) {
+      }).catch(() => null);
+
+      // 2. Fallback to Python backend if local route was unreachable
+      if (!res || !res.ok) {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://signova-backend-baas.onrender.com";
+        res = await fetch(`${backendUrl}/api/recognize_sign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: imageDataUrl,
+            landmarks: landmarks,
+            num_hands: landmarks.length
+          })
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
         const data = await res.json();
         if (data && data.sign && data.sign !== 'None' && data.confidence >= 0.75) {
           setCurrentSign(data.sign);
@@ -136,7 +151,7 @@ export default function SignCameraDetector({
         }
       }
     } catch (err) {
-      // non-fatal backend fallback
+      // non-fatal vision fallback
     } finally {
       isCloudBusyRef.current = false;
     }

@@ -205,8 +205,9 @@ export default function Home() {
     // it finishes, which should just redisplay the buffer, not double-add it.
     if (!isFinal) {
       const buf = sentenceBufferRef.current;
-      // Previous sentence already ended (fragment ended in . ! or ?) — start fresh.
-      if (buf.length > 0 && /[.!?।]\s*$/.test(buf[buf.length - 1])) {
+      const joinedLen = buf.join(' ').length;
+      // Previous sentence ended (fragment ended in . ! ? ।) or buffer exceeded comfortable cinema size (110 chars / 2 phrases)
+      if ((buf.length > 0 && /[.!?।]\s*$/.test(buf[buf.length - 1])) || joinedLen > 110 || buf.length >= 2) {
         sentenceBufferRef.current = [];
       }
       sentenceBufferRef.current = [...sentenceBufferRef.current, cleaned];
@@ -249,14 +250,17 @@ export default function Home() {
     const textToDisplay = spokenPhrase || sign;
     handleSetSubtitles(textToDisplay, true);
 
-    // Animate avatar to sign the recognized concept back
+    // If demo lecture or mic speech is actively running, don't interrupt playback
+    if (isDemoActiveRef.current || isRecordingRef.current) return;
+
+    // Animate avatar to sign the recognized concept back immediately without clogging the queue
     try {
       const sigml = await textToSiGML(sign);
       if (sigml && sigml.length > 0) {
         enqueueChunks([{
           text: textToDisplay,
           sigml: sigml
-        }]);
+        }], { replace: true });
       }
     } catch (e) {
       // non-fatal
