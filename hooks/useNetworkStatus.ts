@@ -10,6 +10,7 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
   const [networkType, setNetworkType] = useState<string>('4g');
   const [pingMs, setPingMs] = useState<number | null>(null);
   const isPingingRef = useRef(false);
+  const consecutiveSlowCountRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -23,6 +24,7 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
       const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
       if (!online) {
         if (isMounted) {
+          consecutiveSlowCountRef.current = 0;
           setIsOnline(false);
           setConnectionQuality('offline');
           setPingMs(null);
@@ -38,7 +40,7 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
       const startTime = performance.now();
 
       try {
@@ -53,50 +55,44 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
 
         if (!isMounted) return;
 
-        if (!res.ok && res.status !== 204) {
-          // If ping endpoint returned an error, check if connection is poor
-          setConnectionQuality('poor');
-          setPingMs(latency);
-          return;
-        }
+        const isSuccess = res.ok || res.status === 204 || res.status === 200;
 
         setIsOnline(true);
         setPingMs(latency);
 
-        // Instant classification:
-        // - Good: latency < 250ms and not 2g/slow-2g
-        // - Poor (Slow Network): latency >= 250ms, or browser reports 2g/slow-2g or conn.rtt > 300
-        const isBrowserReportingSlow = conn && (
-          conn.effectiveType === 'slow-2g' ||
-          conn.effectiveType === '2g' ||
-          (conn.rtt && conn.rtt > 300)
-        );
+        // Robust network classification:
+        // Standard cloud latency across regions (e.g. Asia to US/EU edge) is 100ms-400ms.
+        // We only consider a ping "slow" if it exceeds 550ms, fails, or browser is explicitly on slow-2g.
+        // To avoid false positives from transient jitter, require 3 consecutive slow checks before marking 'poor'.
+        const isSlowSample = !isSuccess || latency > 550 || (conn && conn.effectiveType === 'slow-2g');
 
-        if (latency >= 250 || isBrowserReportingSlow) {
-          setConnectionQuality('poor');
+        if (isSlowSample) {
+          consecutiveSlowCountRef.current += 1;
+          if (consecutiveSlowCountRef.current >= 3) {
+            setConnectionQuality('poor');
+          }
         } else {
+          // A single healthy ping immediately resets the counter and restores 'good' status
+          consecutiveSlowCountRef.current = 0;
           setConnectionQuality('good');
         }
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (!isMounted) return;
 
-        // If fetch failed or aborted, determine if totally offline or severely degraded
-        if (!navigator.onLine || err.name === 'AbortError') {
-          if (!navigator.onLine) {
-            setIsOnline(false);
-            setConnectionQuality('offline');
-            setPingMs(null);
-          } else {
-            // Timeout reached (2500ms) while navigator thinks it's online -> severely slow network
-            setIsOnline(true);
-            setConnectionQuality('poor');
-            setPingMs(2500);
-          }
-        } else {
+        if (!navigator.onLine) {
+          consecutiveSlowCountRef.current = 0;
           setIsOnline(false);
           setConnectionQuality('offline');
           setPingMs(null);
+        } else {
+          // Timeout reached while navigator claims online -> slow network debounce
+          consecutiveSlowCountRef.current += 1;
+          if (consecutiveSlowCountRef.current >= 3) {
+            setIsOnline(true);
+            setConnectionQuality('poor');
+            setPingMs(4000);
+          }
         }
       } finally {
         isPingingRef.current = false;
@@ -107,6 +103,7 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
     performPing();
 
     const handleOffline = () => {
+      consecutiveSlowCountRef.current = 0;
       setIsOnline(false);
       setConnectionQuality('offline');
       setPingMs(null);
@@ -130,8 +127,8 @@ export function useNetworkStatus(wsTeacherRef?: React.MutableRefObject<WebSocket
       conn.addEventListener('change', performPing);
     }
 
-    // High frequency active check every 2.0s for instant detection
-    const interval = setInterval(performPing, 2000);
+    // Ping check every 5.0s to remain responsive without edge invocation thrashing
+    const interval = setInterval(performPing, 5000);
 
     return () => {
       isMounted = false;

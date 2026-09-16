@@ -292,6 +292,13 @@ export default function Home() {
   const { sessionId, resetSession } = useSignSockets({ setSubtitles: handleSetSubtitles, enqueueSiGML, enqueueChunks, wsTeacherRef, onTeacherOpen: sendTtsConfig });
   
   const { isOnline, connectionQuality, networkType, pingMs } = useNetworkStatus(wsTeacherRef);
+  const [dismissedSlowAlert, setDismissedSlowAlert] = useState(false);
+
+  useEffect(() => {
+    if (connectionQuality === 'good') {
+      setDismissedSlowAlert(false);
+    }
+  }, [connectionQuality]);
 
   const { 
     isRecording, isSpeaking, stopMic, toggleMic, statusText, statusColor, visualizerRefs, sttMode, setSttMode 
@@ -1099,13 +1106,20 @@ export default function Home() {
       )}
 
       {/* Instant Slow Network Alert Banner */}
-      {isOnline && connectionQuality === 'poor' && (
+      {isOnline && connectionQuality === 'poor' && !dismissedSlowAlert && (
         <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[250] flex items-center gap-2.5 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl shadow-2xl shadow-amber-950/60 border border-amber-400/50 backdrop-blur-xl animate-pulse pointer-events-auto">
           <span className="text-base sm:text-lg">⚡</span>
           <div className="flex flex-col">
             <span className="font-bold text-xs sm:text-sm">Slow Network Detected ({pingMs !== null ? `${pingMs}ms` : 'High Latency'})</span>
             <span className="text-[10px] sm:text-xs text-amber-100">Audio and sign language may experience minor buffering</span>
           </div>
+          <button 
+            onClick={() => setDismissedSlowAlert(true)}
+            className="ml-2 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/20 transition-colors text-xs font-bold"
+            title="Dismiss alert"
+          >
+            ✕
+          </button>
         </div>
       )}
 
