@@ -280,6 +280,11 @@ export default function SignAvatar({ avatarName, isScreenshare, isVisualAssist, 
         };
         window.CWASA.init(window.CWAClientCfg);
         isInitialized.current = true;
+        setTimeout(() => {
+          if (!window.__cwasaAvatarReady && typeof document !== 'undefined' && document.querySelector('canvas')) {
+            window.__cwasaAvatarReady = true;
+          }
+        }, 3000);
       } else {
         const interval = setInterval(() => {
           if (window.CWASA) {
@@ -301,6 +306,11 @@ export default function SignAvatar({ avatarName, isScreenshare, isVisualAssist, 
             };
             window.CWASA.init(window.CWAClientCfg);
             isInitialized.current = true;
+            setTimeout(() => {
+              if (!window.__cwasaAvatarReady && typeof document !== 'undefined' && document.querySelector('canvas')) {
+                window.__cwasaAvatarReady = true;
+              }
+            }, 3000);
             clearInterval(interval);
           }
         }, 500);

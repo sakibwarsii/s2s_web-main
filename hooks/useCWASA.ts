@@ -214,9 +214,17 @@ export function useCWASA(
       return;
     }
 
-    if (window.CWASA && window.CWASA.playSiGMLText && !window.__cwasaAvatarReady) {
-      setTimeout(playNextInQueue, 250);
-      return;
+    if (window.CWASA && window.CWASA.playSiGMLText) {
+      if (!window.__cwasaAvatarReady) {
+        // Resilient fallback: if the WebGL canvas is already mounted and active in the DOM,
+        // the avatar character is already loaded — unblock playback so signs play immediately.
+        if (typeof document !== 'undefined' && document.querySelector('canvas')) {
+          window.__cwasaAvatarReady = true;
+        } else {
+          setTimeout(playNextInQueue, 250);
+          return;
+        }
+      }
     }
 
     isPlaying.current = true;
