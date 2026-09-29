@@ -101,6 +101,7 @@ export default function MobileInteractiveDock({
             </>
           )}
           <button
+            id="tour-mic"
             onClick={toggleMic}
             className={`w-14 h-14 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-2xl active:scale-90 touch-manipulation cursor-pointer select-none border-2 ${
               isRecording

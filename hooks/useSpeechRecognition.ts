@@ -108,7 +108,9 @@ export function useSpeechRecognition(
   const isRecognizingRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const speakingDecayTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const sttModeRef = useRef<SttMode>('browser');
+  const sttModeRef = useRef<SttMode>(sttMode);
+  sttModeRef.current = sttMode;
+  const networkErrorCountRef = useRef<number>(0);
   const targetLanguageRef = useRef(targetLanguage);
   targetLanguageRef.current = targetLanguage;
   const explicitSessionIdRef = useRef(explicitSessionId);
@@ -368,13 +370,15 @@ export function useSpeechRecognition(
         analyserRef.current.getByteFrequencyData(dataArray);
         
         let sum = 0;
+        let maxVal = 0;
         for (let i = 0; i < dataArray.length; i++) {
           sum += dataArray[i];
+          if (dataArray[i] > maxVal) maxVal = dataArray[i];
         }
         const average = sum / dataArray.length;
         
-        // Voice Activity Detection with sensitive noise-floor threshold
-        if (average > 6) {
+        // Voice Activity Detection: sensitive noise-floor and peak detector
+        if (average > 1.5 || maxVal > 15) {
           lastSpokenTimeRef.current = Date.now();
           hadSoundRef.current = true;
           
@@ -477,18 +481,13 @@ export function useSpeechRecognition(
     rec.continuous = !isIOS;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
-    rec.lang = LANGUAGE_BCP47_MAP[targetLanguageRef.current] || 'en-IN';
 
-    // Boost Indian English educational terms and phonetics via SpeechGrammarList if supported
-    const SpeechGrammarListClass = (window as any).SpeechGrammarList || (window as any).webkitSpeechGrammarList;
-    if (SpeechGrammarListClass) {
-      try {
-        const grammarList = new SpeechGrammarListClass();
-        const grammar = '#JSGF V1.0; grammar indian_english; public <term> = working | work | works | classroom | teacher | students | signova | physics | mathematics | science | formula | method | chapter ;';
-        grammarList.addFromString(grammar, 1);
-        rec.grammars = grammarList;
-      } catch (e) {}
+    const userBrowserLang = typeof navigator !== 'undefined' ? (navigator.language || 'en-US') : 'en-US';
+    let chosenLang = LANGUAGE_BCP47_MAP[targetLanguageRef.current] || 'en-IN';
+    if (targetLanguageRef.current === 'English') {
+      chosenLang = userBrowserLang.startsWith('en') ? userBrowserLang : 'en-IN';
     }
+    rec.lang = chosenLang;
 
     const isNoiseArtifact = (text: string) => {
       const t = text.trim().toLowerCase();
@@ -501,47 +500,39 @@ export function useSpeechRecognition(
     };
 
     rec.onaudiostart = () => {
-      console.log("[STT] Mobile audio capture active");
+      console.log("[STT] Audio capture active");
       setStatusText("Listening...");
       setStatusColor("#a855f7");
     };
 
     rec.onsoundstart = () => {
-      if (isMobile()) {
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-        pulseMobileVisualizer(true);
-      }
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+      if (isMobile()) pulseMobileVisualizer(true);
     };
 
     rec.onspeechstart = () => {
-      if (isMobile()) {
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-        pulseMobileVisualizer(true);
-      }
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+      if (isMobile()) pulseMobileVisualizer(true);
     };
 
     rec.onsoundend = () => {
-      if (isMobile()) {
-        if (speakingDecayTimerRef.current) clearTimeout(speakingDecayTimerRef.current);
-        speakingDecayTimerRef.current = setTimeout(() => {
-          isSpeakingRef.current = false;
-          setIsSpeaking(false);
-          pulseMobileVisualizer(false);
-        }, 350);
-      }
+      if (speakingDecayTimerRef.current) clearTimeout(speakingDecayTimerRef.current);
+      speakingDecayTimerRef.current = setTimeout(() => {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        if (isMobile()) pulseMobileVisualizer(false);
+      }, 350);
     };
 
     rec.onspeechend = () => {
-      if (isMobile()) {
-        if (speakingDecayTimerRef.current) clearTimeout(speakingDecayTimerRef.current);
-        speakingDecayTimerRef.current = setTimeout(() => {
-          isSpeakingRef.current = false;
-          setIsSpeaking(false);
-          pulseMobileVisualizer(false);
-        }, 350);
-      }
+      if (speakingDecayTimerRef.current) clearTimeout(speakingDecayTimerRef.current);
+      speakingDecayTimerRef.current = setTimeout(() => {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        if (isMobile()) pulseMobileVisualizer(false);
+      }, 350);
     };
 
     rec.onresult = (event: any) => {
@@ -577,31 +568,19 @@ export function useSpeechRecognition(
         const curSessId = getSessionId();
 
         if (isFinal) {
-          const remainingWords = words.slice(streamedWordCountRef.current);
           streamedWordCountRef.current = 0;
-          
-          const textToSend = remainingWords.join(" ").trim();
-          const formattedRemainder = formatProperSubtitles(textToSend, true);
-          if (textToSend && !isNoiseArtifact(textToSend) && !isDuplicateUtterance(textToSend)) {
-            console.log("[STT] Sending final remainder:", formattedRemainder, "Lang:", targetLanguageRef.current, "Sess:", curSessId);
+          const finalPayload = formatted || transcript;
+          if (finalPayload && !isNoiseArtifact(finalPayload) && !isDuplicateUtterance(finalPayload)) {
+            console.log("[STT] Sending final utterance:", finalPayload, "Lang:", targetLanguageRef.current, "Sess:", curSessId);
             if (wsTeacherRef.current && wsTeacherRef.current.readyState === WebSocket.OPEN) {
               wsTeacherRef.current.send(JSON.stringify({ 
                 type: "text", 
                 isFinal: true, 
-                payload: formattedRemainder,
+                payload: finalPayload,
                 language: targetLanguageRef.current,
                 session_id: curSessId
               }));
             }
-          }
-          if (wsTeacherRef.current && wsTeacherRef.current.readyState === WebSocket.OPEN) {
-            wsTeacherRef.current.send(JSON.stringify({ 
-              type: "text", 
-              isFinal: true, 
-              payload: formatted || transcript,
-              language: targetLanguageRef.current,
-              session_id: curSessId
-            }));
           }
         } else {
           if (wsTeacherRef.current && wsTeacherRef.current.readyState === WebSocket.OPEN) {
@@ -646,6 +625,13 @@ export function useSpeechRecognition(
         return;
       }
       if (e.error === 'network') {
+        networkErrorCountRef.current = (networkErrorCountRef.current || 0) + 1;
+        if (networkErrorCountRef.current >= 2) {
+          console.info("[STT] Repeated network error in SpeechRecognition. Falling back to backend audio streaming (Groq Whisper)...");
+          setSttMode('vosk');
+          startVisualizer();
+          return;
+        }
         if (isRecordingRef.current) {
           setTimeout(() => {
             if (isRecordingRef.current && !isRecognizingRef.current) {
@@ -655,9 +641,9 @@ export function useSpeechRecognition(
         }
         return;
       }
-      // On mobile devices, if speech recognition encounters audio-capture or service block, fallback to WebSocket audio streaming
+      // If speech recognition encounters audio-capture or service block, fallback to WebSocket audio streaming
       if (e.error === 'audio-capture' || e.error === 'service-not-allowed') {
-        console.info("[STT] SpeechRecognition audio-capture error on mobile. Falling back to WebSocket Audio Streaming (Vosk/Whisper)...");
+        console.info("[STT] SpeechRecognition audio-capture/service error. Falling back to backend audio streaming (Groq Whisper)...");
         setSttMode('vosk');
         startVisualizer();
         return;
@@ -667,6 +653,7 @@ export function useSpeechRecognition(
         setIsRecording(false);
         setStatusText("Mic Denied");
         setStatusColor("#ef4444");
+        onSubtitlesRef.current?.("Microphone access blocked. Please allow mic permission in browser settings.", false);
         stopVisualizer();
         stopMobilePulseLoop();
       }
@@ -757,6 +744,7 @@ export function useSpeechRecognition(
     setIsRecording(true);
     setStatusText("Listening...");
     setStatusColor("#a855f7");
+    onSubtitlesRef.current?.("Listening... Speak now", false);
     
     const onMobile = isMobile();
 
@@ -778,7 +766,12 @@ export function useSpeechRecognition(
 
       if (recognition.current && !isRecognizingRef.current) {
         try { 
-          recognition.current.lang = LANGUAGE_BCP47_MAP[targetLanguageRef.current] || 'en-IN';
+          const userBrowserLang = typeof navigator !== 'undefined' ? (navigator.language || 'en-US') : 'en-US';
+          let chosenLang = LANGUAGE_BCP47_MAP[targetLanguageRef.current] || 'en-IN';
+          if (targetLanguageRef.current === 'English') {
+            chosenLang = userBrowserLang.startsWith('en') ? userBrowserLang : 'en-IN';
+          }
+          recognition.current.lang = chosenLang;
           recognition.current.start(); 
           isRecognizingRef.current = true;
         } catch(e: any) {
@@ -805,6 +798,7 @@ export function useSpeechRecognition(
     isSpeakingRef.current = false;
     setStatusText("System Ready");
     setStatusColor("#10b981");
+    onSubtitlesRef.current?.("Start the mic to translate...", false);
     
     if (sttModeRef.current === 'vosk' && wsTeacherRef.current?.readyState === WebSocket.OPEN) {
       wsTeacherRef.current.send(JSON.stringify({ type: "flush", session_id: getSessionId() }));
